@@ -207,6 +207,19 @@
 
   mp/PMatrixEquality
   (mp/matrix-equals [a b] (if (= (type a) (type b)) (.equals a b) (.equals a (mp/construct-matrix a b))))
+  mp/PMatrixEqualityEpsilon
+  (mp/matrix-equals-epsilon [a b eps]
+    (let [b-new (if (instance? org.nd4j.linalg.api.ndarray.INDArray b) b (convert-mn a (m/to-nested-vectors b)))
+          a-add (.add a eps)
+          a-sub (.sub a eps)
+          prt2  (println (type a-add))
+          gt    (.gt a-add b-new)
+          lt    (.lt a-sub b-new)
+          gt-min (.minNumber gt)
+          gt-max (.maxNumber gt)
+          lt-min (.minNumber lt)
+          lt-max (.maxNumber lt)]
+      (= gt-min gt-max lt-min lt-max)))
   mp/PDoubleArrayOutput
   (mp/to-double-array [m] (.asDouble (.data m)))
   (mp/as-double-array [m] nil)
