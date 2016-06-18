@@ -1,4 +1,4 @@
-(ns nd4clj.kiw 
+(ns nd4clj.kiw
   (:require [clojure.core.matrix.protocols :as mp]
             [clojure.core.matrix :as m]
             [clojure.reflect :as r]
@@ -12,30 +12,30 @@
   (:import [org.nd4j.linalg.factory Nd4j]
            [org.nd4j.linalg.api.ndarray INDArray]
            [clojure.lang Numbers]
-           [org.nd4j.linalg.indexing IntervalIndex INDArrayIndex])) 
+           [org.nd4j.linalg.indexing IntervalIndex INDArrayIndex]))
 
 ;; TODO: eliminate reflection warnings
 (set! *warn-on-reflection* true)
 ;; (set! *unchecked-math* true)
 
-  (defn convert-to-nested-vectors [m]
-    (let [sp (reverse (vec (.shape m)))
-          flattened (vec (.asDouble (.data m)))]
-      (first (reduce #(partition %2 %1) flattened sp))))
+(defn convert-to-nested-vectors [m]
+  (let [sp (reverse (vec (.shape m)))
+        flattened (vec (.asDouble (.data m)))]
+    (first (reduce #(partition %2 %1) flattened sp))))
 
 (defn convert-mn [m data] (let [data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
-                       (convert-to-nested-vectors data)
-                       (instance? clojure.lang.PersistentVector data)
-                       data 
-                       (instance? java.lang.Number data)
-                       [data])
-          crr (Nd4j/create
-     (double-array (vec (flatten data-p)))
-     (int-array
-      (loop [cur data-p lst []]
-         (if (not (sequential? cur))
-          lst
-          (recur (first cur) (conj lst (count cur)))))))] crr))
+                                             (convert-to-nested-vectors data)
+                                             (instance? clojure.lang.PersistentVector data)
+                                             (if (instance? java.lang.Number (first data)) [data] data)
+                                             (instance? java.lang.Number data)
+                                             [[data]])
+                                crr (Nd4j/create
+                                     (double-array (vec (flatten data-p)))
+                                     (int-array
+                                      (loop [cur data-p lst []]
+                                        (if (not (sequential? cur))
+                                          lst
+                                          (recur (first cur) (conj lst (count cur)))))))] crr))
 
 (extend-type org.nd4j.linalg.api.ndarray.INDArray
   mp/PImplementation
@@ -45,36 +45,35 @@
   graphic cards."})
   (mp/construct-matrix [m data]
     (convert-mn m data))
-(mp/new-vector [m length]
+  (mp/new-vector [m length]
     (Nd4j/create (int length)))
-(mp/new-matrix [m rows columns]
+  (mp/new-matrix [m rows columns]
     (Nd4j/create (int rows) (int columns)))
   (mp/new-matrix-nd [m shape]
     (Nd4j/create (int-array shape)))
   (mp/supports-dimensionality? [m dimensions]
-    true)
+    (>= dimensions 2))
   mp/PDimensionInfo
-  (mp/dimensionality [m] 
+  (mp/dimensionality [m]
     (alength (.shape m)))
   (mp/get-shape [m]
     (vec (int-array (.shape m))))
-  (mp/is-scalar? [m] false)
+  (mp/is-scalar? [m]
+    false)
   (mp/is-vector? [m]
     (.isVector m))
   (mp/dimension-count [m dimension-number]
     (aget (.shape m) dimension-number))
-    mp/PIndexedAccess
-    (mp/get-1d [m row]
-      (let [ixs (int-array [row])]
-        (println (.getDouble m row))
-      [(.getDouble m row)]))
-    (mp/get-2d [m row column]
+  mp/PIndexedAccess
+  (mp/get-1d [m row]
+    (let [ixs (int-array [row])]
+      (.getDouble m row)))
+  (mp/get-2d [m row column]
     (let [ixs (int-array [row column])]
-      [(.getDouble m ixs)]))
-    (mp/get-nd [m indexes]
+      (.getDouble m ixs)))
+  (mp/get-nd [m indexes]
     (let [ixs (int-array indexes)]
-      [(.getDouble m ixs)]))
-
+      (.getDouble m ixs)))
   mp/PIndexedSetting
   (mp/set-1d [m row v]
     (let [d (.dup m)
@@ -87,28 +86,28 @@
   (mp/set-nd [m indexes v]
     (let [d (.dup m)
           indexes (int-array indexes)]
-     (.putScalar d indexes (double v))))
+      (.putScalar d indexes (double v))))
   (mp/is-mutable? [m] false)
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   mp/PBroadcast
   (mp/broadcast [m target-shape]
-                (.broadcast m (int-array target-shape)))
+    (.broadcast m (int-array target-shape)))
   mp/PBroadcastLike
   (mp/broadcast-like [m a]
-      (mp/broadcast (mp/construct-matrix m a) (mp/get-shape m)))
+    (mp/broadcast (mp/construct-matrix m a) (mp/get-shape m)))
   mp/PBroadcastCoerce ;mp/convert-to-nested-vectors
   (mp/broadcast-coerce [m a]
-                       (.broadcast (mp/construct-matrix m a) (.shape m)))
+    (.broadcast (mp/construct-matrix m a) (.shape m)))
   mp/PImmutableAssignment
   (mp/assign [m source]
-      (let [r (mp/broadcast-coerce m source)]
-        (if (identical? r source) (mp/clone r) r)))
+    (let [r (mp/broadcast-coerce m source)]
+      (if (identical? r source) (mp/clone r) r)))
   mp/PFunctionalOperations
   (mp/element-seq [m]
-                  (loop [pos 0 cmp []]
-                    (if (= pos (dec (.slices m)))
-                      cmp
-                      (recur (inc pos) (conj cmp (.slice m pos))))))
+    (loop [pos 0 cmp []]
+      (if (= pos (dec (.slices m)))
+        cmp
+        (recur (inc pos) (conj cmp (.slice m pos))))))
   (mp/element-map
     ([m f] (map f (mp/element-seq m)))
     ([m f a] (map f (mp/element-seq m) (mp/element-seq a)))
@@ -118,7 +117,7 @@
     ([m f a] (mp/element-map m f a))
     ([m f a more] (mp/element-map m f a more)))
   (mp/element-reduce
-    ([m f] (reduce f (mp/element-seq m))) 
+    ([m f] (reduce f (mp/element-seq m)))
     ([m f init] (reduce f init (mp/element-seq m))))
 
   mp/PDoubleArrayOutput
@@ -128,7 +127,7 @@
   (mp/square [m] (.muli m m))
   mp/PMatrixPredicates
   (mp/identity-matrix? [m]
-                       (.equals (Nd4j/eye (aget (.shape m) 0)) m))
+    (.equals (Nd4j/eye (aget (.shape m) 0)) m))
   (mp/zero-matrix? [m] (and (zero? (.minNumber m)) (zero? (.maxNumber m))))
   (mp/symmetric? [m] false)
   mp/PSliceJoinAlong
@@ -154,8 +153,8 @@
   ;          #_(and (.isRowVector m) (.isColumnVector a))
   ;          )))
   mp/PMatrixCloning
-  (mp/clone [m] 
-            (.dup m))
+  (mp/clone [m]
+    (.dup m))
 
   ;mp/PZeroDimensionConstruction
   ;(mp/new-scalar-array
@@ -182,7 +181,7 @@
   ;(mp/get-column [m i] (println "get-column") (.getColumn m i))
   ;(mp/get-major-slice [m i] (println "get-major-slice ") (println i) (println (vec (.shape m))) (.slice m i))
   ;(mp/get-slice [m dimension i] (println "get-slice") (.slice m i dimension))
-  
+
   ;mp/PSliceView
   ;(mp/get-major-slice-view [m i] (.slice m i (.majorStride m)))
   mp/PSliceSeq
@@ -201,17 +200,20 @@
   (mp/transpose [m] (.transpose m))
   mp/PComputeMatrix
   (mp/compute-matrix [m shape f]
-                     (let [m (mp/new-matrix-nd m shape)
-                           data (reduce (fn [m ix] (mp/set-nd m ix (apply f ix))) m (util/base-index-seq-for-shape shape))
-                           result (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (convert-to-nested-vectors %) %) data)] result))
-  
-  ;Protocol to compute a matrix by calling a function on each indexed location. The function f will be called
-  ;as (f x y z ...) for all index values."
+    (let [m (mp/new-matrix-nd m shape)
+          data (reduce (fn [m ix] (mp/set-nd m ix (apply f ix))) m (util/base-index-seq-for-shape shape))
+          result (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (convert-to-nested-vectors %) %) data)]
+      result))
+
   mp/PMatrixEquality
-  (mp/matrix-equals [a b] (println "Pequals " (type a) " " (type b)) (if (= (type a) (type b)) (.equals a b) (.equals a (mp/construct-matrix a b))))
+  (mp/matrix-equals [a b] (if (= (type a) (type b)) (.equals a b) (.equals a (mp/construct-matrix a b))))
   mp/PDoubleArrayOutput
   (mp/to-double-array [m] (.asDouble (.data m)))
   (mp/as-double-array [m] nil)
+  mp/PValidateShape
+  (mp/validate-shape
+    [m]
+    (vec (.shape m)))
   ;mp/PMatrixTypes
   ;(mp/diagonal? [m] )
   ;(mp/upper-triangular? [m] "Returns true if the matrix m is upper triangualar")
@@ -219,12 +221,23 @@
   ;(mp/positive-definite? [m] "Returns true if the matrix is positive definite")
   ;(mp/positive-semidefinite? [m] "Returns true if the matrix is positive semidefinite")
   ;(mp/orthogonal? [m eps] "Returns true if the matrix is orthogonal")
-  )
+)
+
+(extend-type clojure.lang.PersistentVector
+  mp/PMatrixEquality
+  (mp/matrix-equals
+    [a b] (if (= (type a) (type b)) (= a b) (.equals (mp/construct-matrix b a) b))))
+
+(extend-type java.lang.Number
+  mp/PMatrixEquality
+  (mp/matrix-equals
+    [a b]
+    (if (= (type a) (type b)) (= a b) (let [w (-> b flatten)] (and (= 1 (count w)) (= (first w) a))))))
 
 #_(defprotocol PTranspose
-  "Protocol for array transpose operation"
-  (transpose [m]
-    "Returns the transpose of a matrix. Equivalent to reversing the \"shape\".
+    "Protocol for array transpose operation"
+    (transpose [m]
+      "Returns the transpose of a matrix. Equivalent to reversing the \"shape\".
      Note that:
      - The transpose of a scalar is the same scalar
      - The transpose of a 1D vector is the same 1D vector
@@ -237,29 +250,9 @@
 (imp/register-implementation :nd4j N)
 (clojure.core.matrix/set-current-implementation :nd4j)
 
-(def N (mp/construct-matrix canonical-object [[0 1 2] [3 4 5] [6 7 8] [9 10 11]])) ;[[12 13 14] [15 16 17] [18 19 20]] [[21 22 23] [24 25 26] [27 28 29]]]))
-;(.broadcast (mp/construct-matrix canonical-object [1]) (int-array [2 2]))
-
+(def N (mp/construct-matrix canonical-object [[0 1 2] [3 4 5] [6 7 8] [9 10 11]]))
 
 (defn -main []
-  ;(println (ns-publics 'clojure.core.matrix.impl.wrappers))
-                                        ;(println (ns-interns 'clojure.core.matrix.impl.wrappers))
   (binding [imp/*debug-options* {:print-registrations true}] (ct/compliance-test :nd4j))
-  ;(clojure.core.matrix/set-current-implementation :persistent-vector)
-  ;(println (dflt/svd [[1 2 3] [4 5 6] [7 8 9]]))
-  ;(println (mp/get-major-slice-seq N))
   (println "Everything looks good!"))
-
-
-
-;(def mx (mp/construct-matrix canonical-object [[[1 2 4] [1 2 4] [1 2 4]] [[1 2 4] [1 2 4] [1 2 4]]]))
-;(mp/subvector (mp/construct-matrix canonical-object [0 1 2 3 4]) 2 3)
-
-
-;(mp/get-shape mx)
-;(mp/convert-to-nested-vectors mx)
-;(org.nd4j.linalg.api.ndarray.INDArray/construct-matrix '('(1 2) '(1 2)))
-
-;(type (Nd4j/create 4 2))
-;(mp/get-major-slice-seq mx)
 
