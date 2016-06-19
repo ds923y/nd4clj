@@ -2,9 +2,6 @@
   (:require [clojure.core.matrix.protocols :as mp]
             [clojure.core.matrix :as m]
             [clojure.reflect :as r]
-            [clojure.core.matrix.impl.wrappers :as wp]
-            [clojure.core.matrix.impl.default :as dflt]
-                                        ; [clojure.core.typed :as t]
             [clojure.core.matrix.utils :as util]
             [clojure.core.matrix.compliance-tester :as ct]
             [clojure.core.matrix.implementations :as imp])
@@ -128,71 +125,24 @@
   (mp/zero-matrix? [m] (and (zero? (.minNumber m)) (zero? (.maxNumber m))))
   (mp/symmetric? [m] false)
   mp/PSliceJoinAlong
-  (join-along [m a dim]  (Nd4j/concat (int dim) (into-array org.nd4j.linalg.api.ndarray.INDArray [m a])))
+  (mp/join-along [m a dim]  (Nd4j/concat (int dim) (into-array org.nd4j.linalg.api.ndarray.INDArray [m a])))
   mp/PVectorOps
   (mp/vector-dot [a b] (.mmul a b))
   (mp/length [a] (.distance2 (Nd4j/zeros (.shape a)) a))
   (mp/length-squared [a] (.squaredDistance (Nd4j/zeros (.shape a)) a))
   (mp/normalise [a]  (Nd4j/norm2 a))
-  ;mp/PMatrixAdd
-  ;(mp/matrix-add [m a])
-  ;(mp/matrix-sub [m a])
 
-  ;mp/PTypeInfo
-  ;(mp/element-type [m] Double/TYPE)  
-  ;mp/PMatrixMultiply
-  ;(mp/matrix-multiply [m ^org.nd4j.linalg.api.ndarray.INDArray a]
-  ;  (let [a (mp/construct-matrix m a)]
-  ;    (cond (and (.isRowVector m) (.isRowVector ^org.nd4j.linalg.api.ndarray.INDArray a))
-  ;          (.mmul m (.transpose ^org.nd4j.linalg.api.ndarray.INDArray a))
-  ;          :else
-  ;          (.mmul m a)
-  ;          #_(and (.isRowVector m) (.isColumnVector a))
-  ;          )))
   mp/PMatrixCloning
   (mp/clone [m]
     (.dup m))
-
-  ;mp/PZeroDimensionConstruction
-  ;(mp/new-scalar-array
-  ;  ([m] (Nd4j/scalar 0))
-  ;  ([m value] (Nd4j/scalar value)))
-  ;mp/PZeroDimensionAccess
-  ;(mp/get-0d [m] m #_(.getDouble m 0))
-  ;(mp/set-0d! [m value] (.putScalar m value))
-  ;mp/PZeroDimensionSet
-  ;(mp/set-0d [m ^double value] (.putScalar (.dup m) value))
-  ;mp/PSpecialisedConstructors
-  ;(mp/identity-matrix [m dims] (println m) (println dims) (Nd4j/eye dims))
-  ;(mp/diagonal-matrix [m diagonal-values] "Create a diagonal matrix with the specified leading diagonal values" (println "diagonal-values " (type diagonal-values) " " diagonal-values)
-  ;                    (println (Nd4j/create (double-array diagonal-values)))
-  ;                    (Nd4j/diag (Nd4j/create (double-array diagonal-values))))
 
   mp/PConversion
   (mp/convert-to-nested-vectors [m]
     (let [sp (reverse (vec (.shape m)))
           flattened (vec (.asDouble (.data m)))]
       (first (reduce #(partition %2 %1) flattened sp))))
-  ;mp/PMatrixSlices
-  ;(mp/get-row [m i] (println "get-row") (.getRow m i))
-  ;(mp/get-column [m i] (println "get-column") (.getColumn m i))
-  ;(mp/get-major-slice [m i] (println "get-major-slice ") (println i) (println (vec (.shape m))) (.slice m i))
-  ;(mp/get-slice [m dimension i] (println "get-slice") (.slice m i dimension))
-
-  ;mp/PSliceView
-  ;(mp/get-major-slice-view [m i] (.slice m i (.majorStride m)))
   mp/PSliceSeq
   (mp/get-major-slice-seq [m] (map #(.slice m %) (range (mp/dimension-count m 0))))
-  ;(reduce #(conj %1 (.slice m %2)) [] (range (aget (.shape m) 0)))
-  ;mp/PSubVector
-  ;(mp/subvector [m start length]
-  ;  (if (mp/is-vector? m)
-  ;    (.get m (into-array INDArrayIndex [(doto (IntervalIndex. false 1) (.init start (+ start length)))]))
-  ;    (throw (ex-info "Not a vector" {:shape (.shape m)}))))
-  ;mp/PMatrixSubComponents
-                                        ;(mp/main-diagonal [m] (Nd4j/diag m))
- ;mp/PCoercion
- ;(mp/coerce-param [m param] (mp/construct-matrix m param))
   mp/PTranspose
   (mp/transpose [m] (.transpose m))
   mp/PComputeMatrix
@@ -226,13 +176,6 @@
     (vec (.shape m)))
   mp/PReshaping
   (mp/reshape [m shape] (println "reshape called") (.reshape m (int-array shape)))
-  ;mp/PMatrixTypes
-  ;(mp/diagonal? [m] )
-  ;(mp/upper-triangular? [m] "Returns true if the matrix m is upper triangualar")
-  ;(mp/lower-triangular? [m] "Returns true if the matrix m is lower triangualar")
-  ;(mp/positive-definite? [m] "Returns true if the matrix is positive definite")
-  ;(mp/positive-semidefinite? [m] "Returns true if the matrix is positive semidefinite")
-  ;(mp/orthogonal? [m eps] "Returns true if the matrix is orthogonal")
 )
 
 (extend-type clojure.lang.PersistentVector
@@ -245,16 +188,6 @@
   (mp/matrix-equals
     [a b]
     (if (= (type a) (type b)) (= a b) (let [w (-> b flatten)] (and (= 1 (count w)) (= (first w) a))))))
-
-#_(defprotocol PTranspose
-    "Protocol for array transpose operation"
-    (transpose [m]
-      "Returns the transpose of a matrix. Equivalent to reversing the \"shape\".
-     Note that:
-     - The transpose of a scalar is the same scalar
-     - The transpose of a 1D vector is the same 1D vector
-     - The transpose of a 2D matrix swaps rows and columns"))
-;(clojure.core.matrix.utils/extends-deep? mp/PImplementation org.nd4j.linalg.cpu.NDArray)
 
 
 (def canonical-object (Nd4j/create 2 2))
