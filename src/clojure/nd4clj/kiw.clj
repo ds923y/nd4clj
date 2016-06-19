@@ -104,10 +104,7 @@
       (if (identical? r source) (mp/clone r) r)))
   mp/PFunctionalOperations
   (mp/element-seq [m]
-    (loop [pos 0 cmp []]
-      (if (= pos (dec (.slices m)))
-        cmp
-        (recur (inc pos) (conj cmp (.slice m pos))))))
+    (vec (.asDouble (.data (.ravel m)))))
   (mp/element-map
     ([m f] (map f (mp/element-seq m)))
     ([m f a] (map f (mp/element-seq m) (mp/element-seq a)))
@@ -227,6 +224,8 @@
   (mp/validate-shape
     [m]
     (vec (.shape m)))
+  mp/PReshaping
+  (mp/reshape [m shape] (println "reshape called") (.reshape m (int-array shape)))
   ;mp/PMatrixTypes
   ;(mp/diagonal? [m] )
   ;(mp/upper-triangular? [m] "Returns true if the matrix m is upper triangualar")
