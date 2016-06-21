@@ -23,20 +23,20 @@
 
 (defn convert-mn [m data]
   (let [data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
-                         (convert-to-nested-vectors data)
-                       (instance? clojure.lang.PersistentVector data)
-                         (if (instance? java.lang.Number (first data)) [data] data) 
-                       (instance? java.lang.Number data)
-                       [[data]]
-                       (or (instance? (Class/forName "[D") data) (instance? (Class/forName "[[D") data))
-                       (m/to-nested-vectors data))
-          crr (Nd4j/create
-     (double-array (vec (flatten data-p)))
-     (int-array
-      (loop [cur data-p lst []]
-         (if (not (sequential? cur))
-          lst
-          (recur (first cur) (conj lst (count cur)))))))] crr))
+                     (convert-to-nested-vectors data)
+                     (instance? clojure.lang.PersistentVector data)
+                     (if (instance? java.lang.Number (first data)) [data] data)
+                     (instance? java.lang.Number data)
+                     [[data]]
+                     (or (instance? (Class/forName "[D") data) (instance? (Class/forName "[[D") data))
+                     (m/to-nested-vectors data))
+        crr (Nd4j/create
+             (double-array (vec (flatten data-p)))
+             (int-array
+              (loop [cur data-p lst []]
+                (if (not (sequential? cur))
+                  lst
+                  (recur (first cur) (conj lst (count cur)))))))] crr))
 
 (extend-type org.nd4j.linalg.api.ndarray.INDArray
   mp/PImplementation
@@ -117,7 +117,7 @@
   (mp/element-reduce
     ([m f] (reduce f (mp/element-seq m)))
     ([m f init] (reduce f init (mp/element-seq m))))
-   mp/PDoubleArrayOutput
+  mp/PDoubleArrayOutput
   (mp/to-double-array [m] (.asDouble (.data (.dup m))))
   (mp/as-double-array [m] nil)
   mp/PSquare
@@ -190,7 +190,15 @@
   (mp/new-scalar-array
     ([m] (Nd4j/scalar 0))
     ([m value] (Nd4j/scalar value)))
-)
+  mp/PMatrixScaling
+  (mp/scale [m a] (.mul m a))
+  (mp/pre-scale [m a] (.mul m a))
+  mp/PMatrixMutableScaling
+  (mp/scale [m a] (.muli m a))
+  (mp/pre-scale [m a] (.muli m a))
+  mp/PMatrixMultiply
+  (mp/matrix-multiply [m a] (.mul m a))
+  (mp/element-multiply [m a] (.mul m a)))
 
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
@@ -202,8 +210,6 @@
   (mp/matrix-equals
     [a b]
     (if (= (type a) (type b)) (= a b) (let [w (-> b flatten)] (and (= 1 (count w)) (= (first w) a))))))
-
-
 
 (def canonical-object (Nd4j/create 2 2))
 (def N (mp/construct-matrix canonical-object [[0 0] [0 0]]))
