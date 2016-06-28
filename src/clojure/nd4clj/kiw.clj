@@ -10,6 +10,7 @@
            [java.util Arrays]
            [org.nd4j.linalg.api.ndarray INDArray]
            [clojure.lang Numbers]
+           [org.nd4j.linalg.api.ops.impl.transforms Pow]
            [org.nd4j.linalg.indexing IntervalIndex INDArrayIndex]))
 
 ;; TODO: eliminate reflection warnings
@@ -29,7 +30,7 @@
                      (instance? java.lang.Number data)
                      [[data]]
                      (or (instance? (Class/forName "[D") data) (instance? (Class/forName "[[D") data))
-                     (m/to-nested-vectors data))
+                     (let [pvec (m/to-nested-vectors data)] (if (instance? java.lang.Number (first pvec)) [pvec] pvec)))
         crr (Nd4j/create
              (double-array (vec (flatten data-p)))
              (int-array
@@ -56,7 +57,7 @@
     (>= dimensions 2))
   mp/PDimensionInfo
   (mp/dimensionality [m]
-    (let [dim (alength (.shape m))] (if (and (= dim 2) (.isRowVector m)) (if (.isColumnVector m) 0 1) dim)))
+    (let [dim (alength (.shape m))] (if (and (= dim 2) (.isRowVector m)) 1 #_(if (.isColumnVector m) 0 1) dim)))
   (mp/get-shape [m]
     (vec (int-array (.shape m))))
   (mp/is-scalar? [m]
@@ -96,7 +97,7 @@
   mp/PBroadcastLike
   (mp/broadcast-like [m a]
     (mp/broadcast (mp/construct-matrix m a) (mp/get-shape m)))
-  mp/PBroadcastCoerce ;mp/convert-to-nested-vectors
+  mp/PBroadcastCoerce 
   (mp/broadcast-coerce [m a]
     (.broadcast (mp/construct-matrix m a) (.shape m)))
   mp/PImmutableAssignment
@@ -117,9 +118,6 @@
   (mp/element-reduce
     ([m f] (reduce f (mp/element-seq m)))
     ([m f init] (reduce f init (mp/element-seq m))))
-  mp/PDoubleArrayOutput
-  (mp/to-double-array [m] (.asDouble (.data (.dup m))))
-  (mp/as-double-array [m] nil)
   mp/PSquare
   (mp/square [m] (.muli m m))
   mp/PMatrixPredicates
@@ -198,12 +196,22 @@
   (mp/pre-scale [m a] (.muli m a))
   mp/PMatrixMultiply
   (mp/matrix-multiply [m a] (.mul m a))
-  (mp/element-multiply [m a] (.mul m a)))
+  (mp/element-multiply [m a] (.mul m a))
+    mp/PMatrixDivide
+  (mp/element-divide
+    ([m] (.rdiv m 1))
+    ([m a] (.div m a)))
+  mp/PMatrixDivideMutable
+  (mp/element-divide!
+    ([m] (.rdivi 1 m))
+    ([m a] (.divi m a)))
+  mp/PExponent
+    (mp/element-pow [m exponent] (let [result (Nd4j/create (.shape m))] (.exec (Nd4j/getExecutioner) (Pow. (.dup m) result exponent)) result)))
 
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
   (mp/matrix-equals
-    [a b] (if (= (type a) (type b)) (= a b) (.equals (mp/construct-matrix b a) b))))
+    [a b]  (if (= (type a) (type b)) (= a b) (.equals (mp/construct-matrix b a) b))))
 
 (extend-type java.lang.Number
   mp/PMatrixEquality
@@ -219,6 +227,7 @@
 (def N (mp/construct-matrix canonical-object [[0 1 2] [3 4 5] [6 7 8] [9 10 11]]))
 
 (defn -main []
+  ;(println (mapv #(-> % mp/to-double-array Arrays/toString) (mp/get-major-slice-seq N)))
   (binding [imp/*debug-options* {:print-registrations true}] (ct/compliance-test :nd4j))
   (println "Everything looks good!"))
 
