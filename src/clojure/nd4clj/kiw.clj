@@ -17,6 +17,48 @@
 (set! *warn-on-reflection* true)
 ;; (set! *unchecked-math* true)
 
+(defn sub-matrix [matrix a b c d]
+(let [idx1 (IntervalIndex. true 1)
+            idx2 (IntervalIndex. true 1)
+            idxs (into-array INDArrayIndex [idx1 idx2])]
+        (.init idx1 (int a) (int b))
+        (.init idx2 (int c) (int d))
+        (.get matrix idxs))
+  )
+
+(defn triangleUpper [matrix n offset1 offset2]
+  ;(println n offset1 offset2)
+  (let [nh (long (/ n 2))
+        nr (long (mod n 2))
+        a0 (+ nh offset1)
+        b0 (+ (- n 1) offset1)
+        c0 (+ 0 offset2)
+        d0 (+ (- nh 1) offset2)
+        sub (sub-matrix matrix a0 b0 c0 d0)]
+    
+    (and (if (> nh 1) 
+        (and (triangleUpper matrix nh offset1 offset2)
+             (triangleUpper matrix (+ nh nr) (+ nh offset1) (+ nh offset2)))
+        true)
+        (= 0.0 (.minNumber sub) (.maxNumber sub)))
+    ))
+
+(defn triangleLower [matrix n offset1 offset2]
+  ;(println n offset1 offset2)
+  (let [nh (long (/ n 2))
+        nr (long (mod n 2))
+        a0 (+ 0 offset1) ;(+ nh offset1)
+        b0 (+ (- nh 1) offset1) ;(+ (- n 1) offset1)
+        c0 (+ nh offset2) ;(+ 0 offset2)
+        d0 (+ (- n 1) offset2) ;(+ (- nh 1) offset2)
+        sub (sub-matrix matrix a0 b0 c0 d0)]
+    (and (if (> nh 1) 
+        (and (triangleLower matrix nh offset1 offset2)
+             (triangleLower matrix (+ nh nr) (+ nh offset1) (+ nh offset2)))
+        true)
+        (= 0.0 (.minNumber sub) (.maxNumber sub)))
+    ))
+
 (defn convert-to-nested-vectors [m]
   (let [sp (reverse (vec (.shape m)))
         flattened (vec (.asDouble (.data m)))]
@@ -206,7 +248,16 @@
     ([m] (.rdivi 1 m))
     ([m a] (.divi m a)))
   mp/PExponent
-    (mp/element-pow [m exponent] (let [result (Nd4j/create (.shape m))] (.exec (Nd4j/getExecutioner) (Pow. (.dup m) result exponent)) result)))
+  (mp/element-pow [m exponent] (let [result (Nd4j/create (.shape m))] (.exec (Nd4j/getExecutioner) (Pow. (.dup m) result exponent)) result))
+    mp/PMatrixTypes
+  (mp/diagonal? [m] true)
+  (mp/upper-triangular? [m] (println "elaine:" m) (triangleUpper m (aget (.shape m) 0) 0 0))
+  (mp/lower-triangular? [m] (println "elaine:" m) (triangleLower m (aget (.shape m) 0) 0 0))
+  (mp/positive-definite? [m] true)
+  (mp/positive-semidefinite? [m] true)
+  (mp/orthogonal? [m eps] true)
+
+  )
 
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
