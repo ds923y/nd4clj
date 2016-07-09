@@ -59,6 +59,8 @@
         (= 0.0 (.minNumber sub) (.maxNumber sub)))
     ))
 
+(defn square? [matrix] (apply = (vec (.shape matrix))))
+
 (defn convert-to-nested-vectors [m]
   (let [sp (reverse (vec (.shape m)))
         flattened (vec (.asDouble (.data m)))]
@@ -164,7 +166,7 @@
   (mp/square [m] (.muli m m))
   mp/PMatrixPredicates
   (mp/identity-matrix? [m]
-    (.equals (Nd4j/eye (aget (.shape m) 0)) m))
+    (and (square? m) (mp/diagonal? m) (let [diag (mp/main-diagonal m)] (= 1.0 (.minNumber diag) (.maxNumber diag)))))
   (mp/zero-matrix? [m] (and (zero? (.minNumber m)) (zero? (.maxNumber m))))
   (mp/symmetric? [m] false)
   mp/PSliceJoinAlong
@@ -251,11 +253,14 @@
   (mp/element-pow [m exponent] (let [result (Nd4j/create (.shape m))] (.exec (Nd4j/getExecutioner) (Pow. (.dup m) result exponent)) result))
     mp/PMatrixTypes
   (mp/diagonal? [m] (and (triangleUpper m (aget (.shape m) 0) 0 0) (triangleLower m (aget (.shape m) 0) 0 0)))
-  (mp/upper-triangular? [m] (println "elaine:" m) (triangleUpper m (aget (.shape m) 0) 0 0))
-  (mp/lower-triangular? [m] (println "elaine:" m) (triangleLower m (aget (.shape m) 0) 0 0))
-  (mp/positive-definite? [m] true)
-  (mp/positive-semidefinite? [m] true)
-  (mp/orthogonal? [m eps] (mp/matrix-equals-epsilon (.mmul (.transpose m) m) (Nd4j/eye (aget (.shape m) 0)) eps)))
+  (mp/upper-triangular? [m] (triangleUpper m (aget (.shape m) 0) 0 0))
+  (mp/lower-triangular? [m] (triangleLower m (aget (.shape m) 0) 0 0))
+  (mp/positive-definite? [m] (throw (UnsupportedOperationException. "my exception message"))) ;TODO:
+  (mp/positive-semidefinite? [m] (throw (UnsupportedOperationException. "my exception message")))
+  (mp/orthogonal? [m eps] (mp/matrix-equals-epsilon (.mmul (.transpose m) m) (Nd4j/eye (aget (.shape m) 0)) eps))
+  mp/PMatrixSubComponents
+  (mp/main-diagonal [m] (Nd4j/diag m))
+  )
 
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
