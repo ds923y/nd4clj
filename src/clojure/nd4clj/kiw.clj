@@ -237,7 +237,7 @@
   (mp/scale [m a] (.muli m a))
   (mp/pre-scale [m a] (.muli m a))
   mp/PMatrixMultiply
-  (mp/matrix-multiply [m a] (.mul m a))
+  (mp/matrix-multiply [m a] (.mmul m a))
   (mp/element-multiply [m a] (.mul m a))
     mp/PMatrixDivide
   (mp/element-divide
@@ -250,14 +250,12 @@
   mp/PExponent
   (mp/element-pow [m exponent] (let [result (Nd4j/create (.shape m))] (.exec (Nd4j/getExecutioner) (Pow. (.dup m) result exponent)) result))
     mp/PMatrixTypes
-  (mp/diagonal? [m] true)
+  (mp/diagonal? [m] (and (triangleUpper m (aget (.shape m) 0) 0 0) (triangleLower m (aget (.shape m) 0) 0 0)))
   (mp/upper-triangular? [m] (println "elaine:" m) (triangleUpper m (aget (.shape m) 0) 0 0))
   (mp/lower-triangular? [m] (println "elaine:" m) (triangleLower m (aget (.shape m) 0) 0 0))
   (mp/positive-definite? [m] true)
   (mp/positive-semidefinite? [m] true)
-  (mp/orthogonal? [m eps] true)
-
-  )
+  (mp/orthogonal? [m eps] (mp/matrix-equals-epsilon (.mmul (.transpose m) m) (Nd4j/eye (aget (.shape m) 0)) eps)))
 
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
