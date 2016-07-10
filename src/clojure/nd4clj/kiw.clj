@@ -185,7 +185,7 @@
   (mp/convert-to-nested-vectors [m]
     (let [sp (reverse (vec (.shape m)))
           flattened (vec (.asDouble (.data m)))]
-      (first (reduce #(partition %2 %1) flattened sp))))
+      (first (reduce #(mapv vec (partition %2 %1)) flattened sp))))
   mp/PMatrixSlices
   (mp/get-row [m i]  (.getRow m i))
   (mp/get-column [m i]  (.getColumn m i))
