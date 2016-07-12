@@ -66,15 +66,20 @@
         flattened (vec (.asDouble (.data m)))]
     (first (reduce #(partition %2 %1) flattened sp))))
 
+;;TODO: fix conversion to persistent array
 (defn convert-mn [m data]
   (let [data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
                      (convert-to-nested-vectors data)
                      (instance? clojure.lang.PersistentVector data)
-                     (if (instance? java.lang.Number (first data)) [data] data)
+                     (if (instance? java.lang.Number (first data)) [data] (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (first (convert-to-nested-vectors %)) %) data))
                      (instance? java.lang.Number data)
                      [[data]]
+                     ;(or (instance? clojure.core.matrix.impl.wrappers.NDWrapper data) (instance? clojure.core.matrix.impl.ndarray_object.NDArray data))
+                     
                      (or (instance? (Class/forName "[D") data) (instance? (Class/forName "[[D") data))
-                     (let [pvec (m/to-nested-vectors data)] (if (instance? java.lang.Number (first pvec)) [pvec] pvec)))
+                     (let [pvec (m/to-nested-vectors data)] (if (instance? java.lang.Number (first pvec)) [pvec] pvec))
+                     :else
+                     (m/to-nested-vectors data))
         crr (Nd4j/create
              (double-array (vec (flatten data-p)))
              (int-array
@@ -260,6 +265,9 @@
   (mp/orthogonal? [m eps] (mp/matrix-equals-epsilon (.mmul (.transpose m) m) (Nd4j/eye (aget (.shape m) 0)) eps))
   mp/PMatrixSubComponents
   (mp/main-diagonal [m] (Nd4j/diag m))
+    (mp/main-diagonal [m] (Nd4j/diag m))
+  mp/PValueEquality
+  (mp/value-equals [m a] (mp/matrix-equals m a))
   )
 
 (extend-type clojure.lang.PersistentVector
