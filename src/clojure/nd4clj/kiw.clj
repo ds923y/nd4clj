@@ -106,7 +106,7 @@
     (>= dimensions 2))
   mp/PDimensionInfo
   (mp/dimensionality [m]
-    (let [dim (alength (.shape m))] (if (and (= dim 2) (.isRowVector m)) 1 #_(if (.isColumnVector m) 0 1) dim)))
+    (let [dim (alength (.shape m))] (if (and (= dim 2) (or (.isRowVector m) (.isColumnVector m))) (if (> (.length m) 1) 1 0) dim)))
   (mp/get-shape [m]
     (vec (int-array (.shape m))))
   (mp/is-scalar? [m]
@@ -275,13 +275,18 @@
   (mp/matrix-equals
     [a b]  (if (= (type a) (type b)) (= a b) (.equals (mp/construct-matrix b a) b))))
 
+(def canonical-object (Nd4j/create 2 2))
+
 (extend-type java.lang.Number
+    mp/PBroadcast
+  (mp/broadcast [m target-shape]
+    (.broadcast (mp/construct-matrix canonical-object m) (int-array target-shape)))
   mp/PMatrixEquality
   (mp/matrix-equals
     [a b]
     (if (= (type a) (type b)) (= a b) (let [w (-> b flatten)] (and (= 1 (count w)) (= (first w) a))))))
 
-(def canonical-object (Nd4j/create 2 2))
+
 (def N (mp/construct-matrix canonical-object [[0 0] [0 0]]))
 (imp/register-implementation :nd4j N)
 (clojure.core.matrix/set-current-implementation :nd4j)
