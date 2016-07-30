@@ -7,7 +7,7 @@ Existing clojure code using the `core.matrix` can change its
 implementation to nd4clj and take advatage of the performance
 of nd4j and interoperability with deeplearning4j libraries.
 Becuse the common matrix datastructure between nd4j, nd4clj and deeplearning4j
-is the NDArray. The NDArray manipulated
+is the NDArray, the NDArray manipulated
 by this librarie's functions can be expected to work as deeplearning4j
 training data.
 ### Tutorial
