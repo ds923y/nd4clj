@@ -13,7 +13,7 @@ training data.
 ### Tutorial
 Add `[org.clojars.ds923y/nd4clj "0.1.0-SNAPSHOT"]` to your project.clj
 file.  Here is an example of usage.
-```
+```clojure
 (ns useit.core
   (:require [nd4clj.matrix :as imp]
             [clojure.core.matrix :as indarray])
