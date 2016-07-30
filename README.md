@@ -18,9 +18,13 @@ file.  Here is an example of usage.
             [clojure.core.matrix :as indarray])
   (:gen-class))
 
+(def A (indarray/array [[0 1] [2 3]]))
+(def I (indarray/array [[1 0] [0 1]]))
+
 (defn -main
+  "I don't do a whole lot ... yet."
   [& args]
-  (println (indarray/mmul (indarray/array [[0 1] [2 3]]) (indarray/array [[1 0] [0 1]])))
+  (println (indarray/mmul A I))
   (println "Hello, World!"))
 ```
 
