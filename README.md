@@ -1,12 +1,13 @@
 # nd4clj
 ### Rationale
-If you have the use case that numpy fulfills and want to use java, nd4j is your
-best bet.  If your language is clojure consider this library (nd4clj)
-for your needs.  This libary is an implementation of core.matrix
-using the nd4j.  It has similar performance caracteristics for
-functions that map directly from nd4j to core.matrix.
-Becuse the common matrix datastructure from nd4j and deeplearning4j
-the NDArray is used in this implemetation, the NDArray manipulated
+If you want to use clojure with the deeplearning4j library a clojure
+wrapper for nd4j functions is needed.  This wrapper implements the
+idiomatic and familiar clojure matrix interface `core.matrix`.
+Existing clojure code using the `core.matrix` can change its
+implementation to nd4clj and take advatage of the performance
+of nd4j and interoperability with deeplearning4j libraries.
+Becuse the common matrix datastructure between nd4j, nd4clj and deeplearning4j
+is the NDArray. The NDArray manipulated
 by this librarie's functions can be expected to work as deeplearning4j
 training data.
 ### Tutorial
