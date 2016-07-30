@@ -21,7 +21,8 @@ file.  Here is an example of usage.
 (defn -main
   [& args]
   (println (indarray/mmul (indarray/array [[0 1] [2 3]]) (indarray/array [[1 0] [0 1]])))
-  (println "Hello, World!"))```
+  (println "Hello, World!"))
+```
 
 ### Limitations
 This is a largely compliant implementation.  The bare minimum of
