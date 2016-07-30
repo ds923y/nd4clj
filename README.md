@@ -10,7 +10,7 @@ the NDArray is used in this implemetation, the NDArray manipulated
 by this librarie's functions can be expected to work as deeplearning4j
 training data.
 ### Tutorial
-Add [org.clojars.ds923y/nd4clj "0.1.0-SNAPSHOT"] to your project.clj
+Add `[org.clojars.ds923y/nd4clj "0.1.0-SNAPSHOT"]` to your project.clj
 file.  Here is an example of usage.
 ```
 (ns useit.core
