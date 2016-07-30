@@ -59,6 +59,15 @@
         (= 0.0 (.minNumber sub) (.maxNumber sub)))
     ))
 
+(defn rotate [matrix dim pos]
+  (let [dim-sz (-> matrix (.size dim))
+                                     components (reduce #(conj %1 (.slice matrix %2 (int dim))) [] (range dim-sz))
+                                     n-pos (mod pos dim-sz)]
+                                 (if (< (count components) 2)
+                                   (first components)
+                                   (let [pret (vec (concat (identity (take-last (- dim-sz n-pos) components)) (take n-pos components)))
+                                         ret (Nd4j/concat (int dim) (into-array INDArray pret))] (.reshape ret (.shape matrix))))))
+
 (defn square? [matrix] (apply = (vec (.shape matrix))))
 
 (defn convert-to-nested-vectors [m]
@@ -268,6 +277,8 @@
     (mp/main-diagonal [m] (Nd4j/diag m))
   mp/PValueEquality
   (mp/value-equals [m a] (mp/matrix-equals m a))
+  mp/PRotate
+  (mp/rotate [m dim places] (rotate m dim places))
   )
 
 (extend-type clojure.lang.PersistentVector
