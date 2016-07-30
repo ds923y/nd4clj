@@ -22,10 +22,8 @@ file.  Here is an example of usage.
 (def I (indarray/array [[1 0] [0 1]]))
 
 (defn -main
-  "I don't do a whole lot ... yet."
   [& args]
-  (println (indarray/mmul A I))
-  (println "Hello, World!"))
+  (println (indarray/mmul A I)))
 ```
 
 ### Limitations
