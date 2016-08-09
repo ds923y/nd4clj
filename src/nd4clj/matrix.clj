@@ -17,7 +17,7 @@
 ;(set! *warn-on-reflection* true)
 ;; (set! *unchecked-math* true)
 
-(defn sub-matrix [matrix a b c d]
+(defn- sub-matrix [matrix a b c d]
   (let [idx1 (IntervalIndex. true 1)
         idx2 (IntervalIndex. true 1)
         idxs (into-array INDArrayIndex [idx1 idx2])]
@@ -25,8 +25,7 @@
     (.init idx2 (int c) (int d))
     (.get matrix idxs)))
 
-(defn triangleUpper [matrix n offset1 offset2]
-  ;(println n offset1 offset2)
+(defn- triangleUpper [matrix n offset1 offset2]
   (let [nh (long (/ n 2))
         nr (long (mod n 2))
         a0 (+ nh offset1)
@@ -41,14 +40,13 @@
            true)
          (= 0.0 (.minNumber sub) (.maxNumber sub)))))
 
-(defn triangleLower [matrix n offset1 offset2]
-  ;(println n offset1 offset2)
+(defn- triangleLower [matrix n offset1 offset2]
   (let [nh (long (/ n 2))
         nr (long (mod n 2))
-        a0 (+ 0 offset1) ;(+ nh offset1)
-        b0 (+ (- nh 1) offset1) ;(+ (- n 1) offset1)
-        c0 (+ nh offset2) ;(+ 0 offset2)
-        d0 (+ (- n 1) offset2) ;(+ (- nh 1) offset2)
+        a0 (+ 0 offset1) 
+        b0 (+ (- nh 1) offset1)
+        c0 (+ nh offset2) 
+        d0 (+ (- n 1) offset2)
         sub (sub-matrix matrix a0 b0 c0 d0)]
     (and (if (> nh 1)
            (and (triangleLower matrix nh offset1 offset2)
@@ -56,31 +54,15 @@
            true)
          (= 0.0 (.minNumber sub) (.maxNumber sub)))))
 
-(defn rotate [matrix dim pos]
-  (let [dim-sz (-> matrix (.size dim))
-        components (reduce #(conj %1 (.slice matrix %2 (int dim))) [] (range dim-sz))
-        n-pos (mod pos dim-sz)]
-    (if (< (count components) 2)
-      (first components)
-      (let [pret (vec (concat (identity (take-last (- dim-sz n-pos) components)) (take n-pos components)))
-            ret (Nd4j/concat (int dim) (into-array INDArray pret))] (.reshape ret (.shape matrix))))))
-
-(defn rotate2 [matrix dim pos]
-  (println (-> matrix (.size dim)))
-  (println "st")
-  (flush)
-;#(Nd4j/concat (int dim) (into-array INDArray [%1 %2]))
+(defn- rotate2 [matrix dim pos]
   (let [dim-sz (-> matrix (.size dim))
         components (reduce #(conj %1 (.slice matrix %2 (int dim))) [] (range dim-sz))
         n-pos (mod pos dim-sz)]
     (if (< (count components) 2)
       (first components)
       (let [to-ret (Nd4j/create (.shape matrix))
-            pret (vec (concat (identity (take-last (- dim-sz n-pos) components)) (take n-pos components)))
-                                         ;bvb (reduce #(.put ) (range (count pret)) (repeat []))      
+            pret (vec (concat (take-last (- dim-sz n-pos) components) (take n-pos components)))    
             ret (Nd4j/concat (int dim) (into-array INDArray pret))] (.reshape ret (.shape matrix))))))
-
-                                        ;(map (fn [] 10) (repeat (vec (repeat (alength (.shape matrix)) 0))))\
 
 (defn- amt ([a b c] (cons a (lazy-seq (amt (nth b c) b (inc c)))))
   ([b] (amt (nth b 0) b (inc 0))))
@@ -90,9 +72,9 @@
                                      steps (vec (reductions * 1 shp))]
                                  (identity (map #(amt (cycle (flatten (map (fn [a] (repeat (steps %) a)) (range (shp %)))))) (range (count shp))))))
 
-(defn- insert-helper [dim m-idxs inner] #_(let [a (split-at dim m-idxs)] ((first a) (last a))) (concat (take dim m-idxs) [(repeat inner)] (drop dim m-idxs)))
+(defn- insert-helper [dim m-idxs inner] (concat (take dim m-idxs) [(repeat inner)] (drop dim m-idxs)))
 
-(defn rotate3 [matrix dim pos]
+(defn- rotate3 [matrix dim pos]
   (let [dim-sz (-> matrix (.size dim))
         components (map #(.slice matrix % (int dim)) (range dim-sz))
         n-pos (mod pos dim-sz)]
@@ -104,26 +86,23 @@
             to-concat (map #(apply map vector (insert-helper dim m-idxs %)) (range (count pret)))
             indexes-c (apply map vector m-idxs)] (doseq [i1 (range (count pret))
                                                          i2 (range (reduce * (vec (.shape (first pret)))))]
-                                            ; (println (nth (nth to-concat i1) i2))
                                                    (.putScalar to-ret (int-array (nth (nth to-concat i1) i2)) (.getDouble (nth pret i1) (int-array (nth indexes-c i2))))) to-ret))))
 
-(defn square? [matrix] (apply = (vec (.shape matrix))))
+(defn- square? [matrix] (apply = (vec (.shape matrix))))
 
-(defn convert-to-nested-vectors [m]
+(defn- convert-to-nested-vectors [m]
   (let [sp (reverse (vec (.shape m)))
         flattened (vec (.asDouble (.data m)))]
     (first (reduce #(partition %2 %1) flattened sp))))
 
 ;;TODO: fix conversion to persistent array
-(defn convert-mn [m data]
+(defn- convert-mn [m data]
   (let [data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
                      (convert-to-nested-vectors data)
                      (instance? clojure.lang.PersistentVector data)
                      (if (instance? java.lang.Number (first data)) [data] (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (first (convert-to-nested-vectors %)) %) data))
                      (instance? java.lang.Number data)
                      [[data]]
-                     ;(or (instance? clojure.core.matrix.impl.wrappers.NDWrapper data) (instance? clojure.core.matrix.impl.ndarray_object.NDArray data))
-
                      (or (instance? (Class/forName "[D") data) (instance? (Class/forName "[[D") data))
                      (let [pvec (m/to-nested-vectors data)] (if (instance? java.lang.Number (first pvec)) [pvec] pvec))
                      :else
@@ -308,8 +287,8 @@
   (mp/diagonal? [m] (and (triangleUpper m (aget (.shape m) 0) 0 0) (triangleLower m (aget (.shape m) 0) 0 0)))
   (mp/upper-triangular? [m] (triangleUpper m (aget (.shape m) 0) 0 0))
   (mp/lower-triangular? [m] (triangleLower m (aget (.shape m) 0) 0 0))
-  (mp/positive-definite? [m] (throw (UnsupportedOperationException. "my exception message"))) ;TODO:
-  (mp/positive-semidefinite? [m] (throw (UnsupportedOperationException. "my exception message")))
+  (mp/positive-definite? [m] (throw (UnsupportedOperationException. "not implemented"))) 
+  (mp/positive-semidefinite? [m] (throw (UnsupportedOperationException. "not implemented")))
   (mp/orthogonal? [m eps] (mp/matrix-equals-epsilon (.mmul (.transpose m) m) (Nd4j/eye (aget (.shape m) 0)) eps))
   mp/PMatrixSubComponents
   (mp/main-diagonal [m] (Nd4j/diag m))
@@ -338,11 +317,4 @@
 (def N (mp/construct-matrix canonical-object [[0 0] [0 0]]))
 (imp/register-implementation :nd4j N)
 (clojure.core.matrix/set-current-implementation :nd4j)
-
-;(def N (mp/construct-matrix canonical-object [[0 1 2] [3 4 5] [6 7 8] [9 10 11]]))
-
-#_(defn -main []
-  ;(println (mapv #(-> % mp/to-double-array Arrays/toString) (mp/get-major-slice-seq N)))
-    (binding [imp/*debug-options* {:print-registrations true}] (ct/compliance-test :nd4j))
-    (println "Everything looks good!"))
 
