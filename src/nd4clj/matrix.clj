@@ -65,6 +65,53 @@
       (let [pret (vec (concat (identity (take-last (- dim-sz n-pos) components)) (take n-pos components)))
             ret (Nd4j/concat (int dim) (into-array INDArray pret))] (.reshape ret (.shape matrix))))))
 
+(defn rotate2 [matrix dim pos]
+    (println (-> matrix (.size dim)))
+  (println "st")
+  (flush)
+;#(Nd4j/concat (int dim) (into-array INDArray [%1 %2]))
+  (let [dim-sz (-> matrix (.size dim))
+                                     components (reduce #(conj %1 (.slice matrix %2 (int dim))) [] (range dim-sz))
+                                     n-pos (mod pos dim-sz)]
+                                 (if (< (count components) 2)
+                                   (first components)
+                                   (let [to-ret (Nd4j/create (.shape matrix))
+                                         pret (vec (concat (identity (take-last (- dim-sz n-pos) components)) (take n-pos components)))
+                                         ;bvb (reduce #(.put ) (range (count pret)) (repeat []))      
+                                         ret (Nd4j/concat (int dim) (into-array INDArray pret))] (.reshape ret (.shape matrix))))))
+
+                                        ;(map (fn [] 10) (repeat (vec (repeat (alength (.shape matrix)) 0))))\
+
+(defn- amt ([a b c] (cons a (lazy-seq (amt (nth b c) b (inc c)))))
+          ([b] (amt (nth b 0) b (inc 0))))
+
+
+
+(defn- matrix-indexes [matrix] (let [shp (vec (.shape matrix))
+      total (reduce * shp)
+      steps (vec (reductions * 1 shp))]
+                              (identity (map #(amt (cycle (flatten (map (fn [a] (repeat (steps %) a)) (range (shp %)))))) (range (count shp))))))
+
+(defn- insert-helper [dim m-idxs inner] #_(let [a (split-at dim m-idxs)] ((first a) (last a))) (concat (take dim m-idxs) [(repeat inner)] (drop dim m-idxs)))
+
+(defn rotate3 [matrix dim pos]
+  (let [dim-sz (-> matrix (.size dim))
+        components (map #(.slice matrix % (int dim)) (range dim-sz))
+                                     n-pos (mod pos dim-sz)]
+                                 (if (< (count components) 2)
+                                   (first components)
+                                   (let [to-ret (Nd4j/create (.shape matrix))
+                                         pret (vec (concat (identity (take-last (- dim-sz n-pos) components)) (take n-pos components)))
+                                         m-idxs (matrix-indexes (first pret))
+                                         to-concat (map #(apply map vector (insert-helper dim m-idxs %)) (range (count pret)))
+                                         indexes-c (apply map vector m-idxs)
+                                         ] (doseq [i1 (range (count pret))
+                                                   i2 (range (reduce * (vec (.shape (first pret)))))]
+                                            ; (println (nth (nth to-concat i1) i2))
+                                             (.putScalar to-ret (int-array (nth (nth to-concat i1) i2)) (.getDouble (nth pret i1) (int-array (nth indexes-c i2))))
+                                             
+                                             ) to-ret))))
+
 (defn square? [matrix] (apply = (vec (.shape matrix))))
 
 (defn convert-to-nested-vectors [m]
@@ -174,7 +221,7 @@
     ([m f] (reduce f (mp/element-seq m)))
     ([m f init] (reduce f init (mp/element-seq m))))
   mp/PSquare
-  (mp/square [m] (.muli m m))
+  (mp/square [m] (mp/element-pow m 2))
   mp/PMatrixPredicates
   (mp/identity-matrix? [m]
     (and (square? m) (mp/diagonal? m) (let [diag (mp/main-diagonal m)] (= 1.0 (.minNumber diag) (.maxNumber diag)))))
@@ -275,7 +322,7 @@
   mp/PValueEquality
   (mp/value-equals [m a] (mp/matrix-equals m a))
   mp/PRotate
-  (mp/rotate [m dim places] (rotate m dim places)))
+  (mp/rotate [m dim places] (if (= (alength (.shape m)) 2) (rotate2 m dim places) (rotate3 m dim places))))
 
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
