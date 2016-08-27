@@ -12,12 +12,12 @@
 
 (clojure.core.matrix/set-current-implementation :nd4j)
 
-(deftest slice-tests
+#_(deftest slice-tests
   (is (equals [3 4] (slice (matrix :nd4j [[1 2] [3 4]]) 1))) ;; second slice
   (is (equals [1 3] (slice (matrix :nd4j [[1 2] [3 4]]) 1 0))) ;; first slice of second dimension
   ) 
 
-(deftest shape-tests
+#_(deftest shape-tests
   (is (= [2] (shape (first (slices (matrix :nd4j [[2 0] [0 2]])))))) ;; first of slice sequence
   (is (nil? (shape (first (eseq (matrix :nd4j [[2 0] [0 2]])))))) ;; first element
   ) 
