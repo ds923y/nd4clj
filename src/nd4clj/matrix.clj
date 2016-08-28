@@ -117,11 +117,11 @@
   (mp/construct-matrix [m data]
     (convert-mn m data))
   (mp/new-vector [m length]
-    (Nd4j/create (int length)))
+    (convert-mn m (Nd4j/create (int length))))
   (mp/new-matrix [m rows columns]
-    (Nd4j/create (int rows) (int columns)))
+    (convert-mn m (Nd4j/create (int rows) (int columns))))
   (mp/new-matrix-nd [m shape]
-    (Nd4j/create (int-array shape)))
+    (convert-mn m (Nd4j/create (int-array shape))))
   (mp/supports-dimensionality? [m dimensions]
     (>= dimensions 2))
   mp/PDimensionInfo
@@ -180,6 +180,11 @@
   mp/PBroadcastCoerce
   (mp/broadcast-coerce [m b]
     (wrap-matrix m (.broadcast (.a (mp/construct-matrix m b)) (.shape (.a m)))))
+  mp/PMatrixPredicates
+  (mp/identity-matrix? [m]
+    (let [h (.a m)] (and (square? h) (mp/diagonal? h) (let [diag (mp/main-diagonal h)] (= 1.0 (.minNumber ^INDArray diag) (.maxNumber ^INDArray diag))))))
+  (mp/zero-matrix? [m] (let [h (.a m)] (and (zero? (.minNumber ^INDArray h)) (zero? (.maxNumber ^INDArray h)))))
+  (mp/symmetric? [m] false)
   )
 ;vector scalar
 (defn- wrap-matrix [m mx] (->clj-INDArray mx (.vector m) (.scalar m)))
