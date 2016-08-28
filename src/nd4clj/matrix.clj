@@ -13,6 +13,7 @@
            [org.nd4j.linalg.api.shape Shape]
            [org.nd4j.linalg.cpu.nativecpu NDArray]
            [org.nd4j.linalg.api.ops.impl.transforms Pow]
+           [com.google.common.base Function]
            [org.nd4j.linalg.indexing IntervalIndex INDArrayIndex]))
 
 
@@ -74,7 +75,7 @@
 (defn- matrix-indexes [^INDArray matrix] (let [shp (vec (.shape matrix))
                                      total (reduce * shp)
                                      steps (vec (reductions * 1 shp))]
-                                 (identity (map #(amt (cycle (flatten (map (fn [a] (repeat (steps %) a)) (range (shp %)))))) (range (count shp))))))
+                                 (map #(amt (cycle (flatten (map (fn [a] (repeat (steps %) a)) (range (shp %)))))) (range (count shp)))))
 
 (defn- insert-helper [dim m-idxs inner] (concat (take dim m-idxs) [(repeat inner)] (drop dim m-idxs)))
 
@@ -85,7 +86,7 @@
     (if (< (count components) 2)
       (first components)
       (let [to-ret (Nd4j/create (.shape matrix))
-            pret (vec (concat (identity (take-last (- dim-sz n-pos) components)) (take n-pos components)))
+            pret (vec (concat (take-last (- dim-sz n-pos) components) (take n-pos components)))
             m-idxs (matrix-indexes (first pret))
             to-concat (map #(apply map vector (insert-helper dim m-idxs %)) (range (count pret)))
             indexes-c (apply map vector m-idxs)] (doseq [i1 (range (count pret))
@@ -182,12 +183,36 @@
     (wrap-matrix m (.broadcast (.a (mp/construct-matrix m b)) (.shape (.a m)))))
   mp/PMatrixPredicates
   (mp/identity-matrix? [m]
-    (let [h (.a m)] (and (square? h) (mp/diagonal? h) (let [diag (mp/main-diagonal h)] (= 1.0 (.minNumber ^INDArray diag) (.maxNumber ^INDArray diag))))))
+    (let [h (.a m)] (and (square? (.a m)) (mp/diagonal? m) (let [diag (.a (mp/main-diagonal m))] (= 1.0 (.minNumber ^INDArray diag) (.maxNumber ^INDArray  diag))))))
   (mp/zero-matrix? [m] (let [h (.a m)] (and (zero? (.minNumber ^INDArray h)) (zero? (.maxNumber ^INDArray h)))))
   (mp/symmetric? [m] false)
+  mp/PSpecialisedConstructors
+  (mp/identity-matrix
+    [m dims] (wrap-matrix m (Nd4j/eye dims) false false))
+  (mp/diagonal-matrix
+      [m diagonal-values]
+    (let [to-ret (Nd4j/eye (int (count diagonal-values)))]
+      (doseq [i (range (count diagonal-values))]
+        (.put to-ret i i (get diagonal-values i)))
+      (wrap-matrix m to-ret false false)))
+    mp/PMatrixTypes
+  (mp/diagonal? [m] (and (triangleUpper (.a m) (aget (.shape (.a m)) 0) 0 0) (triangleLower (.a m) (aget (.shape (.a m)) 0) 0 0)))
+  (mp/upper-triangular? [m] (triangleUpper (.a m) (aget (.shape (.a m)) 0) 0 0))
+  (mp/lower-triangular? [m] (triangleLower (.a m) (aget (.shape (.a m)) 0) 0 0))
+  (mp/positive-definite? [m] (throw (UnsupportedOperationException. "not implemented"))) 
+  (mp/positive-semidefinite? [m] (throw (UnsupportedOperationException. "not implemented")))
+  (mp/orthogonal? [m eps] (mp/matrix-equals-epsilon (.mmul (.transpose (.a m)) (.a m)) (Nd4j/eye (aget (.shape (.a m)) 0)) eps))
+  mp/PMatrixSubComponents
+  (mp/main-diagonal [m] (wrap-matrix m (Nd4j/diag (.a m))))
   )
+
+;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
+;(let [diag (mp/main-diagonal (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))] (= 1.0 (.minNumber ^INDArray (.a diag)) (.maxNumber ^INDArray (.a diag))))
+;(.apply (reify Function (apply [this input] (int 8))) 2)
+ ;(mp/diagonal-matrix (m/matrix :nd4j [[1 2] [3 4]]) [1 2 3 4])
 ;vector scalar
-(defn- wrap-matrix [m mx] (->clj-INDArray mx (.vector m) (.scalar m)))
+(defn- wrap-matrix ([m mx] (->clj-INDArray mx (.vector m) (.scalar m)))
+                   ([_ mx vector scalar] (->clj-INDArray mx vector scalar)))
 
 (defn- convert-to-nested-vectors [^INDArray m]
   (let [sp (reverse (vec (.shape m)))
@@ -419,5 +444,7 @@
 (def N (mp/construct-matrix canonical-object [[0 0] [0 0]]))
 (imp/register-implementation :nd4j canonical-object)
 (clojure.core.matrix/set-current-implementation :nd4j)
+
+
 
 
