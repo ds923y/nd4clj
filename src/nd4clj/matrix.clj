@@ -219,6 +219,17 @@
           lt-min (.minNumber ^INDArray lt)
           lt-max (.maxNumber ^INDArray lt)]
       (= gt-min gt-max lt-min lt-max)))
+  mp/PBroadcast
+  (mp/broadcast [m target-shape]
+    (wrap-matrix m (.broadcast a (int-array target-shape))))
+  mp/PBroadcastLike
+  (mp/broadcast-like [m z]
+    (mp/broadcast (mp/construct-matrix m (.a z)) (mp/get-shape (.a z))))
+  mp/PBroadcastCoerce
+  (mp/broadcast-coerce [m z]
+    (wrap-matrix m (.broadcast (.a (mp/construct-matrix m z)) (.shape a))))
+  mp/PValueEquality
+  (mp/value-equals [m a] (mp/matrix-equals m a))
   )
 
 ;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
