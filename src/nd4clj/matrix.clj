@@ -201,9 +201,24 @@
   (mp/lower-triangular? [m] (triangleLower (.a m) (aget (.shape (.a m)) 0) 0 0))
   (mp/positive-definite? [m] (throw (UnsupportedOperationException. "not implemented"))) 
   (mp/positive-semidefinite? [m] (throw (UnsupportedOperationException. "not implemented")))
-  (mp/orthogonal? [m eps] (mp/matrix-equals-epsilon (.mmul (.transpose (.a m)) (.a m)) (Nd4j/eye (aget (.shape (.a m)) 0)) eps))
+  (mp/orthogonal? [m eps]
+    (mp/matrix-equals-epsilon
+                           (wrap-matrix m (.mmul (.transpose (.a m)) (.a m)))
+                           (wrap-matrix m (Nd4j/eye (aget (.shape (.a m)) 0))) eps))
   mp/PMatrixSubComponents
   (mp/main-diagonal [m] (wrap-matrix m (Nd4j/diag (.a m))))
+    mp/PMatrixEqualityEpsilon
+  (mp/matrix-equals-epsilon [a b eps]
+    (let [b-new (if (instance? org.nd4j.linalg.api.ndarray.INDArray (.a b)) (.a b) (convert-mn (.a a) (m/to-nested-vectors (.a b))))
+          a-add (.add (.a a) eps)
+          a-sub (.sub (.a a) eps)
+          gt    (.gt a-add b-new)
+          lt    (.lt a-sub b-new)
+          gt-min (.minNumber ^INDArray gt)
+          gt-max (.maxNumber ^INDArray gt)
+          lt-min (.minNumber ^INDArray lt)
+          lt-max (.maxNumber ^INDArray lt)]
+      (= gt-min gt-max lt-min lt-max)))
   )
 
 ;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
