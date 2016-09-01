@@ -65,9 +65,9 @@
         n-pos (mod pos dim-sz)]
     (if (< (count components) 2)
       (first components)
-      (let [to-ret (Nd4j/create (.shape matrix))
+      (let [to-ret (Nd4j/create (.shape ^INDArray matrix))
             pret (vec (concat (take-last (- dim-sz n-pos) components) (take n-pos components)))    
-            ret (Nd4j/concat (int dim) (into-array INDArray pret))] (.reshape ret (.shape matrix))))))
+            ret (Nd4j/concat #^int (int dim) #^"[Lorg.nd4j.linalg.api.ndarray.INDArray;"  (into-array org.nd4j.linalg.api.ndarray.INDArray pret))] (.reshape ^INDArray ret #^ints (.shape matrix))))))
 
 (defn- amt ([a b c] (cons a (lazy-seq (amt (nth b c) b (inc c)))))
   ([b] (amt (nth b 0) b (inc 0))))
@@ -81,17 +81,17 @@
 
 (defn- rotate3 [^INDArray matrix dim pos]
   (let [dim-sz (-> matrix (.size dim))
-        components (map #(.slice matrix % (int dim)) (range dim-sz))
+        components (map #(.slice ^INDArray matrix % (int dim)) (range dim-sz))
         n-pos (mod pos dim-sz)]
     (if (< (count components) 2)
       (first components)
-      (let [to-ret (Nd4j/create (.shape matrix))
+      (let [to-ret (Nd4j/create #^ints (.shape ^INDArray matrix))
             pret (vec (concat (take-last (- dim-sz n-pos) components) (take n-pos components)))
             m-idxs (matrix-indexes (first pret))
             to-concat (map #(apply map vector (insert-helper dim m-idxs %)) (range (count pret)))
             indexes-c (apply map vector m-idxs)] (doseq [i1 (range (count pret))
-                                                         i2 (range (reduce * (vec (.shape (first pret)))))]
-                                                   (.putScalar to-ret (int-array (nth (nth to-concat i1) i2)) (.getDouble (nth pret i1) (int-array (nth indexes-c i2))))) to-ret))))
+                                                         i2 (range (reduce * (vec #^ints (.shape ^INDArray (first pret)))))]
+                                                   (.putScalar ^INDArray to-ret #^ints (int-array (nth (nth to-concat i1) i2)) #^double (.getDouble ^INDArray (nth pret i1) #^ints (int-array (nth indexes-c i2))))) to-ret))))
 
 (defn- square? [^INDArray matrix] (apply = (vec (.shape matrix))))
 
@@ -100,8 +100,8 @@
 (declare wrap-matrix)
 
 (defn- m-new-scalar-array
-                       ([m] (mp/construct-matrix m (Nd4j/scalar 0)))
-                       ([m value] (mp/construct-matrix m (Nd4j/scalar value))))
+                       ([m] (mp/construct-matrix m (Nd4j/scalar #^double (double 0))))
+                       ([m value] (mp/construct-matrix m (Nd4j/scalar #^double (double value)))))
 
 
 (deftype clj-INDArray [^INDArray a ^Boolean vector ^Boolean scalar]
@@ -118,16 +118,16 @@
   (mp/construct-matrix [m data]
     (convert-mn m data))
   (mp/new-vector [m length]
-    (convert-mn m (Nd4j/create (int length))))
+    (convert-mn m (Nd4j/create #^int (int length))))
   (mp/new-matrix [m rows columns]
-    (convert-mn m (Nd4j/create (int rows) (int columns))))
+    (convert-mn m (Nd4j/create #^int (int rows) #^int (int columns))))
   (mp/new-matrix-nd [m shape]
-    (convert-mn m (Nd4j/create (int-array shape))))
+    (convert-mn m (Nd4j/create #^ints (int-array shape))))
   (mp/supports-dimensionality? [m dimensions]
     (>= dimensions 2))
   mp/PDimensionInfo
-  (mp/dimensionality [m] (alength (.shape a)))
-  (mp/get-shape [m] #_(println "get-shape" (type a) a (type m) m) #_(flush) (let [sp (vec (.shape a))]
+  (mp/dimensionality [m] (alength (.shape ^INDArray a)))
+  (mp/get-shape [m] #_(println "get-shape" (type a) a (type m) m) #_(flush) (let [sp (vec (.shape ^INDArray a))]
                       (cond vector [(apply max sp)]
                             scalar nil
                             :else sp)))
@@ -136,54 +136,54 @@
   (mp/is-vector? [m]
     vector)
   (mp/dimension-count [m dimension-number]
-    (aget (.shape a) dimension-number))
+    (aget (.shape ^INDArray a) dimension-number))
   mp/PIndexedAccess
   (mp/get-1d [m row]
     (let [ixs (int-array [row])]
-      (.getDouble a row)))
+      (.getDouble ^INDArray a #^int row)))
   (mp/get-2d [m row column]
     (let [ixs (int-array [row column])]
-      (.getDouble a ixs)))
+      (.getDouble ^INDArray a #^ints ixs)))
   (mp/get-nd [m indexes]
     (let [ixs (int-array indexes)]
-      (.getDouble a ixs)))
+      (.getDouble ^INDArray a #^ints ixs)))
   mp/PIndexedSetting
   (mp/set-1d [m row v]
-    (let [d (.dup a)
+    (let [d (.dup ^INDArray a)
           ixs (int-array row)]
-      (.putScalar d ixs (double v))))
+      (.putScalar ^INDArray d #^ints ixs #^double (double v))))
   (mp/set-2d [m row column v]
-    (let [d (.dup a)
+    (let [d (.dup ^INDArray a)
           ixs (int-array [row column])]
-      (.putScalar d ixs (double v))))
+      (.putScalar ^INDArray d #^ints ixs #^double (double v))))
   (mp/set-nd [m indexes v]
-    (let [d (.dup a)
+    (let [d (.dup ^INDArray a)
           indexes (int-array indexes)]
-      (.putScalar d indexes (double v))))
+      (.putScalar ^INDArray d #^ints indexes #^double (double v))))
   (mp/is-mutable? [m] false)
     mp/PMatrixAdd
-  (mp/matrix-add [m w] (wrap-matrix m (.add a (.a (mp/construct-matrix m w)))))
-  (mp/matrix-sub [m w] (wrap-matrix m (.sub a (.a (mp/construct-matrix m w)))))
+  (mp/matrix-add [m w] (wrap-matrix m (.add ^INDArray a ^INDArray (.a ^clj-INDArray (mp/construct-matrix m w)))))
+  (mp/matrix-sub [m w] (wrap-matrix m (.sub ^INDArray a ^INDArray (.a ^clj-INDArray (mp/construct-matrix m w)))))
   mp/PZeroDimensionConstruction
   (mp/new-scalar-array [m] (mp/construct-matrix m 0))
   (mp/new-scalar-array [m value] (mp/construct-matrix m value))
   mp/PMatrixEquality
-  (mp/matrix-equals [m m2] (if (= (type m) (type m2)) (.equals a (.a m2)) (.equals a (.a (mp/construct-matrix m m2)))))
+  (mp/matrix-equals [m m2] (if (= (type m) (type m2)) (.equals ^INDArray a ^INDArray (.a ^clj-INDArray m2)) (.equals ^INDArray a ^INDArray (.a ^clj-INDArray (mp/construct-matrix m m2)))))
   mp/PMatrixScaling
-  (mp/scale [m b] (wrap-matrix m (.mul a (double b))))
-  (mp/pre-scale [m b] (wrap-matrix m (.mul a (double b))))
+  (mp/scale [m b] (wrap-matrix m (.mul ^INDArray a ^Number (double b))))
+  (mp/pre-scale [m b] (wrap-matrix m (.mul ^INDArray a ^Number (double b))))
     mp/PBroadcast
   (mp/broadcast [m target-shape]
-    (wrap-matrix m (.broadcast (.a m) (int-array target-shape))))
+    (wrap-matrix m (.broadcast ^INDArray (.a m) #^ints (int-array target-shape))))
   mp/PBroadcastLike
   (mp/broadcast-like [m b]
     (mp/broadcast (mp/construct-matrix m b) (mp/get-shape m)))
   mp/PBroadcastCoerce
   (mp/broadcast-coerce [m b]
-    (wrap-matrix m (.broadcast (.a (mp/construct-matrix m b)) (.shape (.a m)))))
+    (wrap-matrix m (.broadcast (.a (mp/construct-matrix m b)) #^ints (.shape (.a m)))))
   mp/PMatrixPredicates
   (mp/identity-matrix? [m]
-    (let [h (.a m)] (and (square? (.a m)) (mp/diagonal? m) (let [diag (.a (mp/main-diagonal m))] (= 1.0 (.minNumber ^INDArray diag) (.maxNumber ^INDArray  diag))))))
+    (let [h (.a m)] (and (square? a) (mp/diagonal? m) (let [diag (.a ^clj-INDArray (mp/main-diagonal m))] (= 1.0 (.minNumber ^INDArray diag) (.maxNumber ^INDArray diag))))))
   (mp/zero-matrix? [m] (let [h (.a m)] (and (zero? (.minNumber ^INDArray h)) (zero? (.maxNumber ^INDArray h)))))
   (mp/symmetric? [m] false)
   mp/PSpecialisedConstructors
@@ -191,29 +191,29 @@
     [m dims] (wrap-matrix m (Nd4j/eye dims) false false))
   (mp/diagonal-matrix
       [m diagonal-values]
-    (let [to-ret (Nd4j/eye (int (count diagonal-values)))]
+    (let [to-ret (Nd4j/eye #^int (int (count diagonal-values)))]
       (doseq [i (range (count diagonal-values))]
-        (.put to-ret i i (get diagonal-values i)))
+        (.put ^INDArray to-ret #^int i #^int i ^Number (get diagonal-values i)))
       (wrap-matrix m to-ret false false)))
     mp/PMatrixTypes
-  (mp/diagonal? [m] (and (triangleUpper (.a m) (aget (.shape (.a m)) 0) 0 0) (triangleLower (.a m) (aget (.shape (.a m)) 0) 0 0)))
-  (mp/upper-triangular? [m] (triangleUpper (.a m) (aget (.shape (.a m)) 0) 0 0))
-  (mp/lower-triangular? [m] (triangleLower (.a m) (aget (.shape (.a m)) 0) 0 0))
+  (mp/diagonal? [m] (and (triangleUpper a (aget (.shape ^INDArray a) 0) 0 0) (triangleLower ^INDArray a (aget (.shape ^INDArray a) 0) 0 0)))
+  (mp/upper-triangular? [m] (triangleUpper ^INDArray a (aget (.shape ^INDArray a) 0) 0 0))
+  (mp/lower-triangular? [m] (triangleLower ^INDArray a (aget (.shape ^INDArray a) 0) 0 0))
   (mp/positive-definite? [m] (throw (UnsupportedOperationException. "not implemented"))) 
   (mp/positive-semidefinite? [m] (throw (UnsupportedOperationException. "not implemented")))
   (mp/orthogonal? [m eps]
     (mp/matrix-equals-epsilon
-                           (wrap-matrix m (.mmul (.transpose (.a m)) (.a m)))
-                           (wrap-matrix m (Nd4j/eye (aget (.shape (.a m)) 0))) eps))
+                           (wrap-matrix m (.mmul (.transpose a) a))
+                           (wrap-matrix m (Nd4j/eye (aget (.shape a) 0))) eps))
   mp/PMatrixSubComponents
-  (mp/main-diagonal [m] (wrap-matrix m (Nd4j/diag (.a m))))
+  (mp/main-diagonal [m] (wrap-matrix m (Nd4j/diag ^INDArray a)))
     mp/PMatrixEqualityEpsilon
-  (mp/matrix-equals-epsilon [a b eps]
-    (let [b-new (if (instance? org.nd4j.linalg.api.ndarray.INDArray (.a b)) (.a b) (convert-mn (.a a) (m/to-nested-vectors (.a b))))
-          a-add (.add (.a a) eps)
-          a-sub (.sub (.a a) eps)
-          gt    (.gt a-add b-new)
-          lt    (.lt a-sub b-new)
+  (mp/matrix-equals-epsilon [s b eps]
+    (let [b-new (if (instance? org.nd4j.linalg.api.ndarray.INDArray (.a ^clj-INDArray b)) (.a ^clj-INDArray b) (convert-mn a (m/to-nested-vectors (.a ^clj-INDArray b))))
+          a-add (.add ^INDArray a ^Number eps)
+          a-sub (.sub ^INDArray a ^Number eps)
+          gt    (.gt ^INDArray a-add ^INDArray b-new)
+          lt    (.lt ^INDArray a-sub ^INDArray b-new)
           gt-min (.minNumber ^INDArray gt)
           gt-max (.maxNumber ^INDArray gt)
           lt-min (.minNumber ^INDArray lt)
@@ -221,15 +221,17 @@
       (= gt-min gt-max lt-min lt-max)))
   mp/PBroadcast
   (mp/broadcast [m target-shape]
-    (wrap-matrix m (.broadcast a (int-array target-shape))))
+    (wrap-matrix m (.broadcast ^INDArray a #^ints (int-array target-shape))))
   mp/PBroadcastLike
   (mp/broadcast-like [m z]
-    (mp/broadcast (mp/construct-matrix m (.a z)) (mp/get-shape (.a z))))
+    (mp/broadcast (mp/construct-matrix m (.a ^clj-INDArray z)) (mp/get-shape (.a ^clj-INDArray z))))
   mp/PBroadcastCoerce
   (mp/broadcast-coerce [m z]
-    (wrap-matrix m (.broadcast (.a (mp/construct-matrix m z)) (.shape a))))
+    (wrap-matrix m (.broadcast ^INDArray (.a ^clj-INDArray (mp/construct-matrix m z)) #^ints (.shape a))))
   mp/PValueEquality
   (mp/value-equals [m a] (mp/matrix-equals m a))
+  mp/PRotate
+  (mp/rotate [m dim places] (wrap-matrix m (if (= (alength (.shape a)) 2) (rotate2 a dim places) (rotate3 a dim places))))
   )
 
 ;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
@@ -237,8 +239,8 @@
 ;(.apply (reify Function (apply [this input] (int 8))) 2)
  ;(mp/diagonal-matrix (m/matrix :nd4j [[1 2] [3 4]]) [1 2 3 4])
 ;vector scalar
-(defn- wrap-matrix ([m mx] (->clj-INDArray mx (.vector m) (.scalar m)))
-                   ([_ mx vector scalar] (->clj-INDArray mx vector scalar)))
+(defn- wrap-matrix ([^clj-INDArray m ^INDArray mx] (->clj-INDArray mx (.vector m) (.scalar m)))
+                   ([^clj-INDArray _ ^INDArray mx ^Boolean vector ^Boolean scalar] (->clj-INDArray mx vector scalar)))
 
 (defn- convert-to-nested-vectors [^INDArray m]
   (let [sp (reverse (vec (.shape m)))
@@ -454,14 +456,14 @@
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
   (mp/matrix-equals
-    [a b]  (if (= (type a) (type b)) (= a b) (.equals (mp/construct-matrix b a) b))))
+    [a b]  (if (= (type a) (type b)) (= a b) (.equals ^INDArray (mp/construct-matrix b a) ^INDArray b))))
 
 (def canonical-object (->clj-INDArray (Nd4j/create 2 2) false false))
 
 (extend-type java.lang.Number
   mp/PBroadcast
   (mp/broadcast [m target-shape]
-    (.broadcast (mp/construct-matrix canonical-object m) (int-array target-shape)))
+    (.broadcast ^INDArray (mp/construct-matrix canonical-object m) #^ints (int-array target-shape)))
   mp/PMatrixEquality
   (mp/matrix-equals
     [a b]
