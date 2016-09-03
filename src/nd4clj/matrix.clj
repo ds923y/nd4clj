@@ -98,13 +98,14 @@
 (declare convert-to-nested-vectors)
 (declare convert-mn)
 (declare wrap-matrix)
+(declare empty-matrix)
 
 (defn- m-new-scalar-array
                        ([m] (mp/construct-matrix m (Nd4j/scalar #^double (double 0))))
-                       ([m value] (mp/construct-matrix m (Nd4j/scalar #^double (double value)))))
+  ([m value] (mp/construct-matrix m (Nd4j/scalar #^double (double value)))))
 
 
-(deftype clj-INDArray [^INDArray a ^Boolean vector ^Boolean scalar]
+(deftype clj-INDArray [^INDArray a ^Boolean vector ^Boolean scalar ^Boolean empty]
  ; MyInterface ; implement the specified protocol (i.e. interface)
     
     ; each function's scope is defined by 
@@ -116,20 +117,32 @@
   protocols. Allows different backends, e.g. jblas or jcublas for
   graphic cards."})
   (mp/construct-matrix [m data]
-    (convert-mn m data))
+    (let [res (convert-mn m data)]
+      (if (nil? data) (empty-matrix (.a res)) res)))
   (mp/new-vector [m length]
-    (convert-mn m (Nd4j/create #^int (int length))))
+    (let [res (Nd4j/create #^int (int length))
+          e (zero? length)
+          s (= length 1)
+          v (> length 1)] (wrap-matrix m res v s e)))
   (mp/new-matrix [m rows columns]
-    (convert-mn m (Nd4j/create #^int (int rows) #^int (int columns))))
+    (let [res (Nd4j/create #^int (int rows) #^int (int columns))
+          e (zero? (min rows columns))
+          s (= rows columns 1)
+          v (and (= (min rows columns) 1) (> (max rows columns) 1))] (wrap-matrix m res v s e))
+    )
   (mp/new-matrix-nd [m shape]
-    (convert-mn m (Nd4j/create #^ints (int-array shape))))
+    (let [res (Nd4j/create #^ints (int-array shape))
+          e (zero? (apply min shape))
+          s (apply = 1 shape)
+          v (and (= (apply min shape) 1) (> (apply max shape) 1))] (wrap-matrix m res v s e))
+     )
   (mp/supports-dimensionality? [m dimensions]
     (>= dimensions 2))
   mp/PDimensionInfo
   (mp/dimensionality [m] (alength (.shape ^INDArray a)))
-  (mp/get-shape [m] #_(println "get-shape" (type a) a (type m) m) #_(flush) (let [sp (vec (.shape ^INDArray a))]
+  (mp/get-shape [m] (let [sp (vec (.shape ^INDArray a))]
                       (cond vector [(apply max sp)]
-                            scalar nil
+                            scalar 0
                             :else sp)))
   (mp/is-scalar? [m]
     scalar)
@@ -232,6 +245,13 @@
   (mp/value-equals [m a] (mp/matrix-equals m a))
   mp/PRotate
   (mp/rotate [m dim places] (wrap-matrix m (if (= (alength (.shape a)) 2) (rotate2 a dim places) (rotate3 a dim places))))
+  mp/PVectorView
+  (mp/as-vector [m] (if (and (= (alength (.shape a)) 2) (or (.isColumnVector a) (.isRowVector a))) (wrap-matrix m a true false) (convert-mn a (vec (.asDouble (.data (.ravel a))))) #_(throw (Exception. "cant cast down a dimentions"))))
+    mp/PReshaping
+    (mp/reshape [m shape] (let [v (if (= (count (vec shape)) 1) true false)]
+                            (wrap-matrix m (.reshape a (int-array shape)) v false)))
+    mp/PElementCount
+    (mp/element-count [m] (if empty 0 (.length a)))
   )
 
 ;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
@@ -239,8 +259,11 @@
 ;(.apply (reify Function (apply [this input] (int 8))) 2)
  ;(mp/diagonal-matrix (m/matrix :nd4j [[1 2] [3 4]]) [1 2 3 4])
 ;vector scalar
-(defn- wrap-matrix ([^clj-INDArray m ^INDArray mx] (->clj-INDArray mx (.vector m) (.scalar m)))
-                   ([^clj-INDArray _ ^INDArray mx ^Boolean vector ^Boolean scalar] (->clj-INDArray mx vector scalar)))
+(defn- wrap-matrix ([^clj-INDArray m ^INDArray mx] (->clj-INDArray mx (.vector m) (.scalar m) (.empty m)))
+  ([^clj-INDArray _ ^INDArray mx ^Boolean vector ^Boolean scalar] (->clj-INDArray mx vector scalar false))
+  ([^clj-INDArray _ ^INDArray mx ^Boolean vector ^Boolean scalar ^Boolean empty] (->clj-INDArray mx vector scalar empty)))
+
+(defn- empty-matrix ([^INDArray mx] (->clj-INDArray mx false false true)))
 
 (defn- convert-to-nested-vectors [^INDArray m]
   (let [sp (reverse (vec (.shape m)))
@@ -268,9 +291,9 @@
                 (if (not (sequential? cur))
                   lst
                   (recur (first cur) (conj lst (count cur)))))))]
-    (cond (instance? java.lang.Number data) (->clj-INDArray crr false true)
-          (and (instance? clojure.lang.PersistentVector data) (instance? java.lang.Number (first data))) (->clj-INDArray crr true false)
-          :else (->clj-INDArray crr false false)))))
+    (cond (instance? java.lang.Number data) (->clj-INDArray crr false true false)
+          (and (instance? clojure.lang.PersistentVector data) (instance? java.lang.Number (first data))) (->clj-INDArray crr true false false)
+          :else (->clj-INDArray crr false false false)))))
 
 #_(extend-type org.nd4j.linalg.api.ndarray.INDArray
   mp/PImplementation
@@ -456,22 +479,27 @@
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
   (mp/matrix-equals
-    [a b]  (if (= (type a) (type b)) (= a b) (.equals ^INDArray (mp/construct-matrix b a) ^INDArray b))))
+    [a b]  (if (= (type a) (type b)) (= a b) (.equals ^INDArray (mp/construct-matrix b a) ^INDArray b)))
+    mp/PValueEquality
+  (mp/value-equals [m a] (mp/matrix-equals m a)))
 
-(def canonical-object (->clj-INDArray (Nd4j/create 2 2) false false))
+(def canonical-object (->clj-INDArray (Nd4j/create 2 2) false false false))
 
 (extend-type java.lang.Number
   mp/PBroadcast
   (mp/broadcast [m target-shape]
-    (.broadcast ^INDArray (mp/construct-matrix canonical-object m) #^ints (int-array target-shape)))
+    (wrap-matrix canonical-object (.broadcast ^INDArray (.a ^clj-INDArray (mp/construct-matrix canonical-object m)) #^ints (int-array target-shape)) false false))
   mp/PMatrixEquality
   (mp/matrix-equals
     [a b]
-    (if (= (type a) (type b)) (= a b) (let [w (-> b flatten)] (and (= 1 (count w)) (= (first w) a))))))
+    (if (= (type a) (type b)) (= a b) (let [w (-> b flatten)] (and (= 1 (count w)) (= (first w) a)))))
+    mp/PValueEquality
+    (mp/value-equals [m a] (mp/matrix-equals m a)))
 
-(def N (mp/construct-matrix canonical-object [[0 0] [0 0]]))
+;(def N (mp/construct-matrix canonical-object [[0 0] [0 0]]))
 (imp/register-implementation :nd4j canonical-object)
 (clojure.core.matrix/set-current-implementation :nd4j)
+
 
 
 
