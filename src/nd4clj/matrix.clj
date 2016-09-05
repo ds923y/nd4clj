@@ -185,15 +185,6 @@
   mp/PMatrixScaling
   (mp/scale [m b] (wrap-matrix m (.mul ^INDArray a ^Number (double b))))
   (mp/pre-scale [m b] (wrap-matrix m (.mul ^INDArray a ^Number (double b))))
-    mp/PBroadcast
-  (mp/broadcast [m target-shape]
-    (wrap-matrix m (.broadcast ^INDArray (.a m) #^ints (int-array target-shape))))
-  mp/PBroadcastLike
-  (mp/broadcast-like [m b]
-    (mp/broadcast (mp/construct-matrix m b) (mp/get-shape m)))
-  mp/PBroadcastCoerce
-  (mp/broadcast-coerce [m b]
-    (wrap-matrix m (.broadcast (.a (mp/construct-matrix m b)) #^ints (.shape (.a m)))))
   mp/PMatrixPredicates
   (mp/identity-matrix? [m]
     (let [h (.a m)] (and (square? a) (mp/diagonal? m) (let [diag (.a ^clj-INDArray (mp/main-diagonal m))] (= 1.0 (.minNumber ^INDArray diag) (.maxNumber ^INDArray diag))))))
@@ -237,12 +228,15 @@
     (wrap-matrix m (.broadcast ^INDArray a #^ints (int-array target-shape))))
   mp/PBroadcastLike
   (mp/broadcast-like [m z]
-    (mp/broadcast (mp/construct-matrix m (.a ^clj-INDArray z)) (mp/get-shape (.a ^clj-INDArray z))))
+    (let [to-broadcast (mp/construct-matrix m z)]
+      (if (.scalar to-broadcast)
+        (wrap-matrix m (.assign (Nd4j/create (.shape a)) z))
+        (mp/broadcast to-broadcast (mp/get-shape m)))))
   mp/PBroadcastCoerce
-  (mp/broadcast-coerce [m z]
-    (wrap-matrix m (.broadcast ^INDArray (.a ^clj-INDArray (mp/construct-matrix m z)) #^ints (.shape a))))
+  (mp/broadcast-coerce [m z];println TODO cast
+    (mp/broadcast-like m z))
   mp/PValueEquality
-  (mp/value-equals [m a] (mp/matrix-equals m a))
+  (mp/value-equals [m r] (mp/matrix-equals m r))
   mp/PRotate
   (mp/rotate [m dim places] (wrap-matrix m (if (= (alength (.shape a)) 2) (rotate2 a dim places) (rotate3 a dim places))))
   mp/PVectorView
@@ -252,6 +246,26 @@
                             (wrap-matrix m (.reshape a (int-array shape)) v false)))
     mp/PElementCount
     (mp/element-count [m] (if empty 0 (.length a)))
+      mp/PFunctionalOperations
+      (mp/element-seq [m]
+    (vec (.asDouble (.data (.ravel (.dup a))))))
+  (mp/element-map [m f] (map f (mp/element-seq m)))
+  (mp/element-map  [m f w] (map f (mp/element-seq m) (mp/element-seq w)))
+  (mp/element-map  [m f w more] (apply (partial map f) (.a m) (.a w) (map mp/element-seq more)))
+  (mp/element-map! [m f] (mp/element-map m f))
+  (mp/element-map! [m f w] (mp/element-map m f w))
+  (mp/element-map! [m f w more] (mp/element-map m f w more))
+  (mp/element-reduce [m f] (reduce f (mp/element-seq m)))
+  (mp/element-reduce [m f init] (reduce f init (mp/element-seq m)))
+  mp/PSameShape
+  (mp/same-shape? [w r] (let [b (convert-mn w r)] (and (= (mp/get-shape w) (mp/get-shape b)) (= empty (.empty b)) (= scalar (.scalar b)) (= vector (.vector b)))))
+  mp/PImmutableAssignment
+  (mp/assign [m source]
+    (let [r (mp/broadcast-coerce m source)]
+      (if (identical? r source) (mp/clone r) r)))
+  mp/PMatrixCloning
+  (mp/clone [m]
+   (wrap-matrix m (.dup a)))
   )
 
 ;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
@@ -427,7 +441,7 @@
           lt-max (.maxNumber ^INDArray lt)]
       (= gt-min gt-max lt-min lt-max)))
   mp/PDoubleArrayOutput
-  (mp/to-double-array [m] (println "will exit") (System/exit 0) (.asDouble (.data (.dup m))))
+  (mp/to-double-array [m] (.asDouble (.data (.dup m))))
   (mp/as-double-array [m] nil)
   mp/PValidateShape
   (mp/validate-shape
@@ -486,8 +500,8 @@
 (def canonical-object (->clj-INDArray (Nd4j/create 2 2) false false false))
 
 (extend-type java.lang.Number
-  mp/PBroadcast
-  (mp/broadcast [m target-shape]
+ ; mp/PBroadcast
+  #_(mp/broadcast [m target-shape]
     (wrap-matrix canonical-object (.broadcast ^INDArray (.a ^clj-INDArray (mp/construct-matrix canonical-object m)) #^ints (int-array target-shape)) false false))
   mp/PMatrixEquality
   (mp/matrix-equals
@@ -495,6 +509,10 @@
     (if (= (type a) (type b)) (= a b) (let [w (-> b flatten)] (and (= 1 (count w)) (= (first w) a)))))
     mp/PValueEquality
     (mp/value-equals [m a] (mp/matrix-equals m a)))
+
+;(extend-type clojure.core.matrix.impl.ndarray_object.NDArray
+;  mp/PValueEquality
+;  (mp/value-equals [m a] (println "hi") (mat/e= m a)))
 
 ;(def N (mp/construct-matrix canonical-object [[0 0] [0 0]]))
 (imp/register-implementation :nd4j canonical-object)
