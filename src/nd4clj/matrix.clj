@@ -265,7 +265,9 @@
       (if (identical? r source) (mp/clone r) r)))
   mp/PMatrixCloning
   (mp/clone [m]
-   (wrap-matrix m (.dup a)))
+    (wrap-matrix m (.dup a)))
+  Object
+  (toString [m] (str a))
   )
 
 ;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
@@ -488,7 +490,9 @@
   mp/PValueEquality
   (mp/value-equals [m a] (mp/matrix-equals m a))
   mp/PRotate
-  (mp/rotate [m dim places] (if (= (alength (.shape m)) 2) (rotate2 m dim places) (rotate3 m dim places))))
+  (mp/rotate [m dim places] (if (= (alength (.shape m)) 2) (rotate2 m dim places) (rotate3 m dim places)))
+  (toString [m] a)
+  )
 
 (extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
@@ -519,6 +523,6 @@
 (clojure.core.matrix/set-current-implementation :nd4j)
 
 
-
+(m/matrix :nd4clj [[0 0] [0 0]])
 
 
