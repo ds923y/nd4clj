@@ -5,9 +5,13 @@ wrapper for nd4j functions is needed.  This wrapper implements the
 idiomatic and familiar clojure matrix interface `core.matrix`.
 Existing clojure code using the `core.matrix` can change its
 implementation to nd4clj and take advatage of the performance
-of nd4j and interoperability with deeplearning4j libraries.
+of nd4j and interoperability with deeplearning4j libraries. 
+b
+The NDArray fundemental to deeplearning4j code is now wrapped
+with this release. It can be unwraped by dereferencing the
+public property "a" as in `(.a (indarray/matrix :nd4clj [[1 2] [3 4]]))`.
 ### Tutorial
-Add `[org.clojars.ds923y/nd4clj "0.1.0-SNAPSHOT"]` to your project.clj
+Add `[org.clojars.ds923y/nd4clj "0.1.1-SNAPSHOT"]` to your project.clj
 file.  Here is an example of usage.
 ```clojure
 (ns useit.core
