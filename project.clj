@@ -1,4 +1,4 @@
-(defproject org.clojars.ds923y/nd4clj "0.1.0-SNAPSHOT"
+(defproject org.clojars.ds923y/nd4clj "0.1.1-SNAPSHOT"
   :plugins [[lein-cljfmt "0.5.3"]]
   :description "An implementation of core.matrix protocols with nd4j."
   :license {:name "Eclipse Public License"
