@@ -118,7 +118,7 @@
   graphic cards."})
   (mp/construct-matrix [m data]
     (let [res (convert-mn m data)]
-      (if (nil? data) (empty-matrix (.a res)) res)))
+      (if (nil? data) (empty-matrix (.a ^clj-INDArray res)) res)))
   (mp/new-vector [m length]
     (let [res (Nd4j/create #^int (int length))
           e (zero? length)
@@ -229,8 +229,8 @@
   mp/PBroadcastLike
   (mp/broadcast-like [m z]
     (let [to-broadcast (mp/construct-matrix m z)]
-      (if (.scalar to-broadcast)
-        (wrap-matrix m (.assign (Nd4j/create (.shape a)) z))
+      (if (.scalar ^clj-INDArray to-broadcast)
+        (wrap-matrix m (.assign ^INDArray (Nd4j/create (.shape a)) ^java.lang.Number z))
         (mp/broadcast to-broadcast (mp/get-shape m)))))
   mp/PBroadcastCoerce
   (mp/broadcast-coerce [m z];println TODO cast
@@ -251,14 +251,14 @@
     (vec (.asDouble (.data (.ravel (.dup a))))))
   (mp/element-map [m f] (map f (mp/element-seq m)))
   (mp/element-map  [m f w] (map f (mp/element-seq m) (mp/element-seq w)))
-  (mp/element-map  [m f w more] (apply (partial map f) (.a m) (.a w) (map mp/element-seq more)))
+  (mp/element-map  [m f w more] (apply (partial map f) a (.a ^clj-INDArray w) (map mp/element-seq more)))
   (mp/element-map! [m f] (mp/element-map m f))
   (mp/element-map! [m f w] (mp/element-map m f w))
   (mp/element-map! [m f w more] (mp/element-map m f w more))
   (mp/element-reduce [m f] (reduce f (mp/element-seq m)))
   (mp/element-reduce [m f init] (reduce f init (mp/element-seq m)))
   mp/PSameShape
-  (mp/same-shape? [w r] (let [b (convert-mn w r)] (and (= (mp/get-shape w) (mp/get-shape b)) (= empty (.empty b)) (= scalar (.scalar b)) (= vector (.vector b)))))
+  (mp/same-shape? [w r] (let [b (convert-mn w r)] (and (= (mp/get-shape w) (mp/get-shape b)) (= empty (.empty ^clj-INDArray b)) (= scalar (.scalar ^clj-INDArray b)) (= vector (.vector ^clj-INDArray b)))))
   mp/PImmutableAssignment
   (mp/assign [m source]
     (let [r (mp/broadcast-coerce m source)]
