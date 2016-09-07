@@ -137,9 +137,10 @@
           v (and (= (apply min shape) 1) (> (apply max shape) 1))] (wrap-matrix m res v s e))
      )
   (mp/supports-dimensionality? [m dimensions]
-    (>= dimensions 2))
+    (>= dimensions 0))
   mp/PDimensionInfo
-  (mp/dimensionality [m] (alength (.shape ^INDArray a)))
+  (mp/dimensionality [m] (let [w (alength (.shape ^INDArray a))]
+                           (cond scalar 0 vector 1 :else w)))
   (mp/get-shape [m] (let [sp (vec (.shape ^INDArray a))]
                       (cond vector [(apply max sp)]
                             scalar 0
@@ -242,21 +243,22 @@
   mp/PVectorView
   (mp/as-vector [m] (if (and (= (alength (.shape a)) 2) (or (.isColumnVector a) (.isRowVector a))) (wrap-matrix m a true false) (convert-mn a (vec (.asDouble (.data (.ravel a))))) #_(throw (Exception. "cant cast down a dimentions"))))
     mp/PReshaping
-    (mp/reshape [m shape] (let [v (if (= (count (vec shape)) 1) true false)]
+    (mp/reshape [m shape] (let [v (if (= (count (vec shape)) 1) true false)
+                                                        shape (if v (conj shape 1) shape)]
                             (wrap-matrix m (.reshape a (int-array shape)) v false)))
     mp/PElementCount
     (mp/element-count [m] (if empty 0 (.length a)))
-      mp/PFunctionalOperations
-      (mp/element-seq [m]
-    (vec (.asDouble (.data (.ravel (.dup a))))))
-  (mp/element-map [m f] (map f (mp/element-seq m)))
-  (mp/element-map  [m f w] (map f (mp/element-seq m) (mp/element-seq w)))
-  (mp/element-map  [m f w more] (apply (partial map f) a (.a ^clj-INDArray w) (map mp/element-seq more)))
-  (mp/element-map! [m f] (mp/element-map m f))
-  (mp/element-map! [m f w] (mp/element-map m f w))
-  (mp/element-map! [m f w more] (mp/element-map m f w more))
-  (mp/element-reduce [m f] (reduce f (mp/element-seq m)))
-  (mp/element-reduce [m f init] (reduce f init (mp/element-seq m)))
+  ;    mp/PFunctionalOperations
+  ;    (mp/element-seq [m]
+  ;  (vec (.asDouble (.data (.ravel (.dup a))))))
+  ;(mp/element-map [m f] (map f (mp/element-seq m)))
+  ;(mp/element-map  [m f w] (map f (mp/element-seq m) (mp/element-seq w)))
+  ;(mp/element-map  [m f w more] (apply (partial map f) a (.a ^clj-INDArray w) (map mp/element-seq more)))
+  ;(mp/element-map! [m f] (mp/element-map m f))
+  ;(mp/element-map! [m f w] (mp/element-map m f w))
+  ;(mp/element-map! [m f w more] (mp/element-map m f w more))
+  ;(mp/element-reduce [m f] (reduce f (mp/element-seq m)))
+  ;(mp/element-reduce [m f init] (reduce f init (mp/element-seq m)))
   mp/PSameShape
   (mp/same-shape? [w r] (let [b (convert-mn w r)] (and (= (mp/get-shape w) (mp/get-shape b)) (= empty (.empty ^clj-INDArray b)) (= scalar (.scalar ^clj-INDArray b)) (= vector (.vector ^clj-INDArray b)))))
   mp/PImmutableAssignment
@@ -266,6 +268,16 @@
   mp/PMatrixCloning
   (mp/clone [m]
     (wrap-matrix m (.dup a)))
+ mp/PExponent
+ (mp/element-pow [m exponent] (let [result (Nd4j/create (.shape a))] (.exec (Nd4j/getExecutioner) (Pow. (.dup a) result exponent)) (wrap-matrix m result)))
+   mp/PSquare
+   (mp/square [m] (mp/element-pow m 2))
+     mp/PMatrixDivide
+  (mp/element-divide
+    [m] (wrap-matrix m (.rdiv a 1)))
+  (mp/element-divide
+    [m w] (wrap-matrix m (.div a (.a (convert-mn m w)))))
+  
   Object
   (toString [m] (str a))
   )
@@ -494,7 +506,7 @@
   (toString [m] a)
   )
 
-(extend-type clojure.lang.PersistentVector
+#_(extend-type clojure.lang.PersistentVector
   mp/PMatrixEquality
   (mp/matrix-equals
     [a b]  (if (= (type a) (type b)) (= a b) (.equals ^INDArray (mp/construct-matrix b a) ^INDArray b)))
@@ -503,7 +515,7 @@
 
 (def canonical-object (->clj-INDArray (Nd4j/create 2 2) false false false))
 
-(extend-type java.lang.Number
+#_(extend-type java.lang.Number
  ; mp/PBroadcast
   #_(mp/broadcast [m target-shape]
     (wrap-matrix canonical-object (.broadcast ^INDArray (.a ^clj-INDArray (mp/construct-matrix canonical-object m)) #^ints (int-array target-shape)) false false))
