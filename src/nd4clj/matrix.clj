@@ -224,28 +224,30 @@
           lt-min (.minNumber ^INDArray lt)
           lt-max (.maxNumber ^INDArray lt)]
       (= gt-min gt-max lt-min lt-max)))
-  mp/PBroadcast
-  (mp/broadcast [m target-shape]
-    (wrap-matrix m (.broadcast ^INDArray a #^ints (int-array target-shape))))
-  mp/PBroadcastLike
-  (mp/broadcast-like [m z]
-    (let [to-broadcast (mp/construct-matrix m z)]
-      (if (.scalar ^clj-INDArray to-broadcast)
-        (wrap-matrix m (.assign ^INDArray (Nd4j/create (.shape a)) ^java.lang.Number z))
-        (mp/broadcast to-broadcast (mp/get-shape m)))))
-  mp/PBroadcastCoerce
-  (mp/broadcast-coerce [m z];println TODO cast
-    (mp/broadcast-like m z))
+  ;mp/PBroadcast
+  ;(mp/broadcast [m target-shape]
+  ;  (if (< (count target-shape) 3)
+  ;    (wrap-matrix m (.broadcast ^INDArray a #^ints (int-array target-shape)))
+  ;    (m/broadcast (m/matrix :ndarray (convert-to-nested-vectors a)) target-shape)))
+  ;mp/PBroadcastLike
+  ;(mp/broadcast-like [m z]
+  ;  (let [to-broadcast (mp/construct-matrix m z)]
+  ;    (if (.scalar ^clj-INDArray to-broadcast)
+  ;      (wrap-matrix m (.assign ^INDArray (Nd4j/create (.shape a)) ^java.lang.Number z))
+  ;      (mp/broadcast to-broadcast (mp/get-shape m)))))
+  ;mp/PBroadcastCoerce
+  ;(mp/broadcast-coerce [m z];println TODO cast
+  ;  (mp/broadcast-like m z))
   mp/PValueEquality
   (mp/value-equals [m r] (mp/matrix-equals m r))
   mp/PRotate
   (mp/rotate [m dim places] (wrap-matrix m (if (= (alength (.shape a)) 2) (rotate2 a dim places) (rotate3 a dim places))))
   mp/PVectorView
   (mp/as-vector [m] (if (and (= (alength (.shape a)) 2) (or (.isColumnVector a) (.isRowVector a))) (wrap-matrix m a true false) (convert-mn a (vec (.asDouble (.data (.ravel a))))) #_(throw (Exception. "cant cast down a dimentions"))))
-    mp/PReshaping
-    (mp/reshape [m shape] (let [v (if (= (count (vec shape)) 1) true false)
-                                                        shape (if v (conj shape 1) shape)]
-                            (wrap-matrix m (.reshape a (int-array shape)) v false)))
+  mp/PReshaping
+  (mp/reshape [m shape] (let [v (if (= (count (vec shape)) 1) true false)
+                              shape (if v (conj shape 1) shape)]
+                             (wrap-matrix m (.reshape a (int-array shape)) v false)))
     mp/PElementCount
     (mp/element-count [m] (if empty 0 (.length a)))
   ;    mp/PFunctionalOperations
@@ -535,6 +537,9 @@
 (clojure.core.matrix/set-current-implementation :nd4j)
 
 
-(m/matrix :nd4clj [[0 0] [0 0]])
+(def vbt (m/matrix :nd4clj [[2.0 0.0] [0.0 2.0]]))
+(def vbt2 (m/matrix :ndarray [[2.0 0.0] [0.0 2.0]]))
+(m/broadcast vbt [2 2 2]) ;(cons 2 (m/shape vbt))
+(m/broadcast vbt2 (cons 2 (m/shape vbt2)))
 
 
