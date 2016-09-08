@@ -13,14 +13,25 @@
            [org.nd4j.linalg.api.shape Shape]
            [org.nd4j.linalg.cpu.nativecpu NDArray]
            [org.nd4j.linalg.api.ops.impl.transforms Pow]
-           [com.google.common.base Function]
+           [org.nd4j.linalg.api.ops.impl.broadcast BroadcastCopyOp]
            [org.nd4j.linalg.indexing IntervalIndex INDArrayIndex]))
 
 
 
 ;; TODO: eliminate reflection warnings
 (set! *warn-on-reflection* true)
-;; (set! *unchecked-math* true) 
+;; (set! *unchecked-math* true)
+
+(declare convert-to-nested-vectors)
+(declare convert-mn)
+(declare wrap-matrix)
+(declare empty-matrix)
+
+(defn- broadcast [m target-shape] 
+   (let [dim-prj (->> target-shape count range (drop 1) int-array)
+         crt (Nd4j/create (int-array target-shape))
+         vbn (BroadcastCopyOp. crt (.a m) crt (int-array []))
+         to-ret (.exec (Nd4j/getExecutioner) vbn (int-array dim-prj))] (wrap-matrix m to-ret)))
 
 (defn- sub-matrix [^INDArray matrix a b c d]
   (let [idx1 (IntervalIndex. true 1)
@@ -95,10 +106,7 @@
 
 (defn- square? [^INDArray matrix] (apply = (vec (.shape matrix))))
 
-(declare convert-to-nested-vectors)
-(declare convert-mn)
-(declare wrap-matrix)
-(declare empty-matrix)
+
 
 (defn- m-new-scalar-array
                        ([m] (mp/construct-matrix m (Nd4j/scalar #^double (double 0))))
@@ -224,20 +232,17 @@
           lt-min (.minNumber ^INDArray lt)
           lt-max (.maxNumber ^INDArray lt)]
       (= gt-min gt-max lt-min lt-max)))
-  ;mp/PBroadcast
-  ;(mp/broadcast [m target-shape]
-  ;  (if (< (count target-shape) 3)
-  ;    (wrap-matrix m (.broadcast ^INDArray a #^ints (int-array target-shape)))
-  ;    (m/broadcast (m/matrix :ndarray (convert-to-nested-vectors a)) target-shape)))
-  ;mp/PBroadcastLike
-  ;(mp/broadcast-like [m z]
-  ;  (let [to-broadcast (mp/construct-matrix m z)]
-  ;    (if (.scalar ^clj-INDArray to-broadcast)
-  ;      (wrap-matrix m (.assign ^INDArray (Nd4j/create (.shape a)) ^java.lang.Number z))
-  ;      (mp/broadcast to-broadcast (mp/get-shape m)))))
-  ;mp/PBroadcastCoerce
-  ;(mp/broadcast-coerce [m z];println TODO cast
-  ;  (mp/broadcast-like m z))
+  mp/PBroadcast
+  (mp/broadcast [m target-shape] (broadcast m target-shape))
+  mp/PBroadcastLike
+  (mp/broadcast-like [m z]
+    (let [to-broadcast (mp/construct-matrix m z)]
+      (if (.scalar ^clj-INDArray to-broadcast)
+        (wrap-matrix m (.assign ^INDArray (Nd4j/create (.shape a)) ^java.lang.Number z))
+        (mp/broadcast to-broadcast (mp/get-shape m)))))
+  mp/PBroadcastCoerce
+  (mp/broadcast-coerce [m z];println TODO cast
+    (mp/broadcast-like m z))
   mp/PValueEquality
   (mp/value-equals [m r] (mp/matrix-equals m r))
   mp/PRotate
@@ -508,38 +513,8 @@
   (toString [m] a)
   )
 
-#_(extend-type clojure.lang.PersistentVector
-  mp/PMatrixEquality
-  (mp/matrix-equals
-    [a b]  (if (= (type a) (type b)) (= a b) (.equals ^INDArray (mp/construct-matrix b a) ^INDArray b)))
-    mp/PValueEquality
-  (mp/value-equals [m a] (mp/matrix-equals m a)))
-
 (def canonical-object (->clj-INDArray (Nd4j/create 2 2) false false false))
 
-#_(extend-type java.lang.Number
- ; mp/PBroadcast
-  #_(mp/broadcast [m target-shape]
-    (wrap-matrix canonical-object (.broadcast ^INDArray (.a ^clj-INDArray (mp/construct-matrix canonical-object m)) #^ints (int-array target-shape)) false false))
-  mp/PMatrixEquality
-  (mp/matrix-equals
-    [a b]
-    (if (= (type a) (type b)) (= a b) (let [w (-> b flatten)] (and (= 1 (count w)) (= (first w) a)))))
-    mp/PValueEquality
-    (mp/value-equals [m a] (mp/matrix-equals m a)))
-
-;(extend-type clojure.core.matrix.impl.ndarray_object.NDArray
-;  mp/PValueEquality
-;  (mp/value-equals [m a] (println "hi") (mat/e= m a)))
-
-;(def N (mp/construct-matrix canonical-object [[0 0] [0 0]]))
 (imp/register-implementation :nd4j canonical-object)
 (clojure.core.matrix/set-current-implementation :nd4j)
-
-
-(def vbt (m/matrix :nd4clj [[2.0 0.0] [0.0 2.0]]))
-(def vbt2 (m/matrix :ndarray [[2.0 0.0] [0.0 2.0]]))
-(m/broadcast vbt [2 2 2]) ;(cons 2 (m/shape vbt))
-(m/broadcast vbt2 (cons 2 (m/shape vbt2)))
-
 

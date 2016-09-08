@@ -23,4 +23,5 @@
   ) 
 
 (deftest compliance-test
-  (clojure.core.matrix.compliance-tester/instance-test (matrix :nd4j [[2 0] [0 2]]))) 
+  (clojure.core.matrix.compliance-tester/instance-test (matrix :nd4j [[2 0] [0 2]]))
+  (clojure.core.matrix.compliance-tester/compliance-test (matrix :nd4j [[2 0] [0 2]]))) 
