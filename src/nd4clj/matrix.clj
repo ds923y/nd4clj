@@ -158,7 +158,14 @@
   (mp/is-vector? [m]
     vector)
   (mp/dimension-count [m dimension-number]
-    (aget (.shape ^INDArray a) dimension-number))
+    (cond
+      (and scalar (not= dimension-number 0)) (throw (IllegalArgumentException. "bad args"))
+      (and vector (not= dimension-number 0) (throw (IllegalArgumentException. "bad args")))
+      (or (neg? dimension-number) (>= dimension-number (mp/dimensionality m)) (throw (IllegalArgumentException. "bad args")))) ;java.lang.IllegalArgumentException
+    (cond
+      scalar 1
+      vector (->> a (.shape ) vec (apply max))
+   :else (aget (.shape ^INDArray a) dimension-number)))
   mp/PIndexedAccess
   (mp/get-1d [m row]
     (let [ixs (int-array [row])]
@@ -248,7 +255,7 @@
   mp/PRotate
   (mp/rotate [m dim places] (wrap-matrix m (if (= (alength (.shape a)) 2) (rotate2 a dim places) (rotate3 a dim places))))
   mp/PVectorView
-  (mp/as-vector [m] (if (and (= (alength (.shape a)) 2) (or (.isColumnVector a) (.isRowVector a))) (wrap-matrix m a true false) (convert-mn a (vec (.asDouble (.data (.ravel a))))) #_(throw (Exception. "cant cast down a dimentions"))))
+  (mp/as-vector [m] (if (and (= (alength (.shape a)) 2) (or (.isColumnVector a) (.isRowVector a) vector)) (wrap-matrix m a true false) (convert-mn a (vec (.asDouble (.data (.ravel a))))) #_(throw (Exception. "cant cast down a dimentions"))))
   mp/PReshaping
   (mp/reshape [m shape] (let [v (if (= (count (vec shape)) 1) true false)
                               shape (if v (conj shape 1) shape)]
@@ -283,10 +290,13 @@
   (mp/element-divide
     [m] (wrap-matrix m (.rdiv a 1)))
   (mp/element-divide
-    [m w] (wrap-matrix m (.div a (.a (convert-mn m w)))))
-  
+      [m w] (wrap-matrix m (.div a (.a (convert-mn m w)))))
+   ;mp/PConversion
+   ;(mp/convert-to-nested-vectors [m] (convert-to-nested-vectors a))
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;
   Object
   (toString [m] (str a))
+
   )
 
 ;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
@@ -312,9 +322,9 @@
   (let [data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
                      (convert-to-nested-vectors data)
                      (instance? clojure.lang.PersistentVector data)
-                     (if (instance? java.lang.Number (first data))  #_(throw (IllegalArgumentException. "1D vector fuctionality not implemented: supports >= 2D")) [data] (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (first (convert-to-nested-vectors %)) %) data))
+                     (if (instance? java.lang.Number (first data)) [data] (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (first (convert-to-nested-vectors %)) %) data))
                      (instance? java.lang.Number data)
-                     #_(throw (IllegalArgumentException. "scalar 0D fuctionality not implemented: supports >= 2D")) [[data]]
+                     [[data]]
                      (or (instance? (Class/forName "[D") data) (instance? (Class/forName "[[D") data))
                      (let [pvec (m/to-nested-vectors data)] (if (instance? java.lang.Number (first pvec)) [pvec] pvec))
                      :else
@@ -326,7 +336,7 @@
                 (if (not (sequential? cur))
                   lst
                   (recur (first cur) (conj lst (count cur)))))))]
-    (cond (instance? java.lang.Number data) (->clj-INDArray crr false true false)
+    (cond (instance? java.lang.Number data)  (->clj-INDArray crr false true false)
           (and (instance? clojure.lang.PersistentVector data) (instance? java.lang.Number (first data))) (->clj-INDArray crr true false false)
           :else (->clj-INDArray crr false false false)))))
 
