@@ -78,7 +78,7 @@
       (first components)
       (let [to-ret (Nd4j/create (.shape ^INDArray matrix))
             pret (vec (concat (take-last (- dim-sz n-pos) components) (take n-pos components)))    
-            ret (Nd4j/concat #^int (int dim) #^"[Lorg.nd4j.linalg.api.ndarray.INDArray;"  (into-array org.nd4j.linalg.api.ndarray.INDArray pret))] (.reshape ^INDArray ret #^ints (.shape matrix))))))
+            ret (Nd4j/concat #^int (int dim) #^"[Lorg.nd4j.linalg.api.ndarray.INDArray;" (into-array org.nd4j.linalg.api.ndarray.INDArray pret))] (.reshape ^INDArray ret #^ints (.shape matrix))))))
 
 (defn- amt ([a b c] (cons a (lazy-seq (amt (nth b c) b (inc c)))))
   ([b] (amt (nth b 0) b (inc 0))))
@@ -114,11 +114,6 @@
 
 
 (deftype clj-INDArray [^INDArray a ^Boolean vector ^Boolean scalar ^Boolean empty]
- ; MyInterface ; implement the specified protocol (i.e. interface)
-    
-    ; each function's scope is defined by 
-    ; the object provided as the first argument
-    ; i.e. something that is of the `MyClass` type
   mp/PImplementation
   (mp/implementation-key [m] :nd4j)
   (mp/meta-info [m] {:doc "nd4j implementation of the core.matrix
@@ -161,7 +156,7 @@
     (cond
       (and scalar (not= dimension-number 0)) (throw (IllegalArgumentException. "bad args"))
       (and vector (not= dimension-number 0) (throw (IllegalArgumentException. "bad args")))
-      (or (neg? dimension-number) (>= dimension-number (mp/dimensionality m)) (throw (IllegalArgumentException. "bad args")))) ;java.lang.IllegalArgumentException
+      (or (neg? dimension-number) (>= dimension-number (mp/dimensionality m)) (throw (IllegalArgumentException. "bad args"))))
     (cond
       scalar 1
       vector (->> a (.shape ) vec (apply max))
@@ -248,31 +243,20 @@
         (wrap-matrix m (.assign ^INDArray (Nd4j/create (.shape a)) ^java.lang.Number z))
         (mp/broadcast to-broadcast (mp/get-shape m)))))
   mp/PBroadcastCoerce
-  (mp/broadcast-coerce [m z];println TODO cast
+  (mp/broadcast-coerce [m z]
     (mp/broadcast-like m z))
   mp/PValueEquality
   (mp/value-equals [m r] (mp/matrix-equals m r))
   mp/PRotate
   (mp/rotate [m dim places] (wrap-matrix m (if (= (alength (.shape a)) 2) (rotate2 a dim places) (rotate3 a dim places))))
   mp/PVectorView
-  (mp/as-vector [m] (if (and (= (alength (.shape a)) 2) (or (.isColumnVector a) (.isRowVector a) vector)) (wrap-matrix m a true false) (convert-mn a (vec (.asDouble (.data (.ravel a))))) #_(throw (Exception. "cant cast down a dimentions"))))
+  (mp/as-vector [m] (if (and (= (alength (.shape a)) 2) (or (.isColumnVector a) (.isRowVector a) vector)) (wrap-matrix m a true false) (convert-mn a (vec (.asDouble (.data (.ravel a)))))))
   mp/PReshaping
   (mp/reshape [m shape] (let [v (if (= (count (vec shape)) 1) true false)
                               shape (if v (conj shape 1) shape)]
                              (wrap-matrix m (.reshape a (int-array shape)) v false)))
     mp/PElementCount
     (mp/element-count [m] (if empty 0 (.length a)))
-  ;    mp/PFunctionalOperations
-  ;    (mp/element-seq [m]
-  ;  (vec (.asDouble (.data (.ravel (.dup a))))))
-  ;(mp/element-map [m f] (map f (mp/element-seq m)))
-  ;(mp/element-map  [m f w] (map f (mp/element-seq m) (mp/element-seq w)))
-  ;(mp/element-map  [m f w more] (apply (partial map f) a (.a ^clj-INDArray w) (map mp/element-seq more)))
-  ;(mp/element-map! [m f] (mp/element-map m f))
-  ;(mp/element-map! [m f w] (mp/element-map m f w))
-  ;(mp/element-map! [m f w more] (mp/element-map m f w more))
-  ;(mp/element-reduce [m f] (reduce f (mp/element-seq m)))
-  ;(mp/element-reduce [m f init] (reduce f init (mp/element-seq m)))
   mp/PSameShape
   (mp/same-shape? [w r] (let [b (convert-mn w r)] (and (= (mp/get-shape w) (mp/get-shape b)) (= empty (.empty ^clj-INDArray b)) (= scalar (.scalar ^clj-INDArray b)) (= vector (.vector ^clj-INDArray b)))))
   mp/PImmutableAssignment
@@ -291,19 +275,11 @@
     [m] (wrap-matrix m (.rdiv a 1)))
   (mp/element-divide
       [m w] (wrap-matrix m (.div a (.a (convert-mn m w)))))
-   ;mp/PConversion
-   ;(mp/convert-to-nested-vectors [m] (convert-to-nested-vectors a))
-   ;;;;;;;;;;;;;;;;;;;;;;;;;;
   Object
   (toString [m] (str a))
 
   )
 
-;(mp/identity-matrix?  (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))
-;(let [diag (mp/main-diagonal (mp/identity-matrix (m/matrix :nd4j [[1 2] [3 4]]) 5))] (= 1.0 (.minNumber ^INDArray (.a diag)) (.maxNumber ^INDArray (.a diag))))
-;(.apply (reify Function (apply [this input] (int 8))) 2)
- ;(mp/diagonal-matrix (m/matrix :nd4j [[1 2] [3 4]]) [1 2 3 4])
-;vector scalar
 (defn- wrap-matrix ([^clj-INDArray m ^INDArray mx] (->clj-INDArray mx (.vector m) (.scalar m) (.empty m)))
   ([^clj-INDArray _ ^INDArray mx ^Boolean vector ^Boolean scalar] (->clj-INDArray mx vector scalar false))
   ([^clj-INDArray _ ^INDArray mx ^Boolean vector ^Boolean scalar ^Boolean empty] (->clj-INDArray mx vector scalar empty)))
@@ -315,12 +291,10 @@
         flattened (vec (.asDouble (.data m)))]
     (first (reduce #(partition %2 %1) flattened sp))))
 
-;;TODO: fix conversion to persistent array
 (defn- convert-mn [m data]
   (if  (instance? nd4clj.matrix.clj-INDArray data)
                      data
-                     (let [
-                           data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
+                     (let [data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
                      (convert-to-nested-vectors data)
                      (instance? clojure.lang.PersistentVector data)
                      (if (instance? java.lang.Number (first data)) [data] (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (first (convert-to-nested-vectors %)) %) data))
@@ -329,8 +303,7 @@
                      (or (instance? (Class/forName "[D") data) (instance? (Class/forName "[[D") data))
                      (let [pvec (m/to-nested-vectors data)] (if (instance? java.lang.Number (first pvec)) [pvec] pvec))
                      :else
-                      (do () (let [pre (m/to-nested-vectors data)] (cond (mp/is-scalar? pre) [[pre]] (mp/is-vector? pre) [pre] :else pre)))) ;TODO
-        vgr (println "data-p:" data-p)
+                     (let [pre (m/to-nested-vectors data)] (cond (mp/is-scalar? pre) [[pre]] (mp/is-vector? pre) [pre] :else pre)))
         crr (Nd4j/create
              (double-array (vec (flatten data-p)))
              (int-array
@@ -341,192 +314,8 @@
                        (->clj-INDArray crr (mp/is-vector? data) (mp/is-scalar? data) false))))
 
 
-
-#_(extend-type org.nd4j.linalg.api.ndarray.INDArray
-  mp/PImplementation
-  (mp/implementation-key [m] :nd4j)
-  (mp/meta-info [m] {:doc "nd4j implementation of the core.matrix
-  protocols. Allows different backends, e.g. jblas or jcublas for
-  graphic cards."})
-  (mp/construct-matrix [m data]
-    (convert-mn m data))
-  (mp/new-vector [m length]
-    (Nd4j/create (int length)))
-  (mp/new-matrix [m rows columns]
-    (Nd4j/create (int rows) (int columns)))
-  (mp/new-matrix-nd [m shape]
-    (Nd4j/create (int-array shape)))
-  (mp/supports-dimensionality? [m dimensions]
-    (>= dimensions 2))
-  mp/PDimensionInfo
-  (mp/dimensionality [m] (alength (.shape m)))
-  (mp/get-shape [m] (vec (.shape m)))
-  (mp/is-scalar? [m]
-    false)
-  (mp/is-vector? [m]
-    (.isVector m))
-  (mp/dimension-count [m dimension-number]
-    (aget (.shape m) dimension-number))
-  mp/PIndexedAccess
-  (mp/get-1d [m row]
-    (let [ixs (int-array [row])]
-      (.getDouble m row)))
-  (mp/get-2d [m row column]
-    (let [ixs (int-array [row column])]
-      (.getDouble m ixs)))
-  (mp/get-nd [m indexes]
-    (let [ixs (int-array indexes)]
-      (.getDouble m ixs)))
-  mp/PIndexedSetting
-  (mp/set-1d [m row v]
-    (let [d (.dup m)
-          ixs (int-array row)]
-      (.putScalar d ixs (double v))))
-  (mp/set-2d [m row column v]
-    (let [d (.dup m)
-          ixs (int-array [row column])]
-      (.putScalar d ixs (double v))))
-  (mp/set-nd [m indexes v]
-    (let [d (.dup m)
-          indexes (int-array indexes)]
-      (.putScalar d indexes (double v))))
-  (mp/is-mutable? [m] false)
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  mp/PBroadcast
-  (mp/broadcast [m target-shape]
-    (.broadcast m (int-array target-shape)))
-  mp/PBroadcastLike
-  (mp/broadcast-like [m a]
-    (mp/broadcast (mp/construct-matrix m a) (mp/get-shape m)))
-  mp/PBroadcastCoerce
-  (mp/broadcast-coerce [m a]
-    (.broadcast (mp/construct-matrix m a) (.shape m)))
-  mp/PImmutableAssignment
-  (mp/assign [m source]
-    (let [r (mp/broadcast-coerce m source)]
-      (if (identical? r source) (mp/clone r) r)))
-  mp/PFunctionalOperations
-  (mp/element-seq [m]
-    (vec (.asDouble (.data (.ravel m)))))
-  (mp/element-map
-    ([m f] (map f (mp/element-seq m)))
-    ([m f a] (map f (mp/element-seq m) (mp/element-seq a)))
-    ([m f a more] (apply (partial map f) m a (map mp/element-seq more))))
-  (mp/element-map!
-    ([m f] (mp/element-map m f))
-    ([m f a] (mp/element-map m f a))
-    ([m f a more] (mp/element-map m f a more)))
-  (mp/element-reduce
-    ([m f] (reduce f (mp/element-seq m)))
-    ([m f init] (reduce f init (mp/element-seq m))))
-  mp/PSquare
-  (mp/square [m] (mp/element-pow m 2))
-  mp/PMatrixPredicates
-  (mp/identity-matrix? [m]
-    (and (square? m) (mp/diagonal? m) (let [diag (mp/main-diagonal m)] (= 1.0 (.minNumber ^INDArray diag) (.maxNumber ^INDArray diag)))))
-  (mp/zero-matrix? [m] (and (zero? (.minNumber ^INDArray m)) (zero? (.maxNumber ^INDArray m))))
-  (mp/symmetric? [m] false)
-  mp/PSliceJoinAlong
-  (mp/join-along [m a dim]  (Nd4j/concat (int dim) (into-array org.nd4j.linalg.api.ndarray.INDArray [m a])))
-  mp/PVectorOps
-  (mp/vector-dot [a b] (.mmul a b))
-  (mp/length [a] (.distance2 (Nd4j/zeros (.shape a)) a))
-  (mp/length-squared [a] (.squaredDistance (Nd4j/zeros (.shape a)) a))
-  (mp/normalise [a]  (Nd4j/norm2 a))
-
-  mp/PMatrixCloning
-  (mp/clone [m]
-    (.dup m))
-
-  mp/PConversion
-  (mp/convert-to-nested-vectors [m]
-    (let [sp (reverse (vec (.shape m)))
-          flattened (vec (.asDouble (.data m)))]
-      (first (reduce #(mapv vec (partition %2 %1)) flattened sp))))
-  mp/PMatrixSlices
-  (mp/get-row [m i]  (.getRow m i))
-  (mp/get-column [m i]  (.getColumn m i))
-  (mp/get-major-slice [m i] (if (or (.isColumnVector m) (.isRowVector m)) (->clj-INDArray m) (.slice m i)))
-  (mp/get-slice [m dimension i] (.slice m i dimension))
-  mp/PSliceSeq
-  (mp/get-major-slice-seq [m] (mapv #(mp/get-major-slice m %) (range (mp/dimension-count m 0))))
-  mp/PTranspose
-  (mp/transpose [m] (.transpose m))
-  mp/PComputeMatrix
-  (mp/compute-matrix [m shape f]
-    (let [m (mp/new-matrix-nd m shape)
-          data (reduce (fn [m ix] (mp/set-nd m ix (apply f ix))) m (util/base-index-seq-for-shape shape))
-          result (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (convert-to-nested-vectors %) %) data)]
-      result))
-
-  mp/PMatrixEquality
-  (mp/matrix-equals [a b] (if (= (type a) (type b)) (.equals a b) (.equals a (mp/construct-matrix a b))))
-  mp/PMatrixEqualityEpsilon
-  (mp/matrix-equals-epsilon [a b eps]
-    (let [b-new (if (instance? org.nd4j.linalg.api.ndarray.INDArray b) b (convert-mn a (m/to-nested-vectors b)))
-          a-add (.add a eps)
-          a-sub (.sub a eps)
-          gt    (.gt a-add b-new)
-          lt    (.lt a-sub b-new)
-          gt-min (.minNumber ^INDArray gt)
-          gt-max (.maxNumber ^INDArray gt)
-          lt-min (.minNumber ^INDArray lt)
-          lt-max (.maxNumber ^INDArray lt)]
-      (= gt-min gt-max lt-min lt-max)))
-  mp/PDoubleArrayOutput
-  (mp/to-double-array [m] (.asDouble (.data (.dup m))))
-  (mp/as-double-array [m] nil)
-  mp/PValidateShape
-  (mp/validate-shape
-    [m]
-    (vec (.shape m)))
-  mp/PReshaping
-  (mp/reshape [m shape] (.reshape m (int-array shape)))
-  mp/PMatrixAdd
-  (mp/matrix-add [m a] (.add m a))
-  (mp/matrix-sub [m a] (.sub m a))
-  mp/PZeroDimensionConstruction
-  (mp/new-scalar-array
-    ([m] (Nd4j/scalar 0))
-    ([m value] (Nd4j/scalar value)))
-  mp/PMatrixScaling
-  (mp/scale [m a] (.mul m a))
-  (mp/pre-scale [m a] (.mul m a))
-  mp/PMatrixMutableScaling
-  (mp/scale [m a] (.muli m a))
-  (mp/pre-scale [m a] (.muli m a))
-  mp/PMatrixMultiply
-  (mp/matrix-multiply [m a] (.mmul m a))
-  (mp/element-multiply [m a] (.mul m a))
-  mp/PMatrixDivide
-  (mp/element-divide
-    ([m] (.rdiv m 1))
-    ([m a] (.div m a)))
-  mp/PMatrixDivideMutable
-  (mp/element-divide!
-    ([m] (.rdivi 1 m))
-    ([m a] (.divi m a)))
-  mp/PExponent
-  (mp/element-pow [m exponent] (let [result (Nd4j/create (.shape m))] (.exec (Nd4j/getExecutioner) (Pow. (.dup m) result exponent)) result))
-  mp/PMatrixTypes
-  (mp/diagonal? [m] (and (triangleUpper m (aget (.shape m) 0) 0 0) (triangleLower m (aget (.shape m) 0) 0 0)))
-  (mp/upper-triangular? [m] (triangleUpper m (aget (.shape m) 0) 0 0))
-  (mp/lower-triangular? [m] (triangleLower m (aget (.shape m) 0) 0 0))
-  (mp/positive-definite? [m] (throw (UnsupportedOperationException. "not implemented"))) 
-  (mp/positive-semidefinite? [m] (throw (UnsupportedOperationException. "not implemented")))
-  (mp/orthogonal? [m eps] (mp/matrix-equals-epsilon (.mmul (.transpose m) m) (Nd4j/eye (aget (.shape m) 0)) eps))
-  mp/PMatrixSubComponents
-  (mp/main-diagonal [m] (Nd4j/diag m))
-  (mp/main-diagonal [m] (Nd4j/diag m))
-  mp/PValueEquality
-  (mp/value-equals [m a] (mp/matrix-equals m a))
-  mp/PRotate
-  (mp/rotate [m dim places] (if (= (alength (.shape m)) 2) (rotate2 m dim places) (rotate3 m dim places)))
-  (toString [m] a)
-  )
-
 (def canonical-object (->clj-INDArray (Nd4j/create 2 2) false false false))
 
 (imp/register-implementation :nd4j canonical-object)
-(clojure.core.matrix/set-current-implementation :nd4j)
+;(clojure.core.matrix/set-current-implementation :nd4j)
 
