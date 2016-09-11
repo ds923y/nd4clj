@@ -319,7 +319,8 @@
 (defn- convert-mn [m data]
   (if  (instance? nd4clj.matrix.clj-INDArray data)
                      data
-  (let [data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
+                     (let [
+                           data-p (cond (instance? org.nd4j.linalg.api.ndarray.INDArray data)
                      (convert-to-nested-vectors data)
                      (instance? clojure.lang.PersistentVector data)
                      (if (instance? java.lang.Number (first data)) [data] (clojure.walk/prewalk #(if (instance? org.nd4j.linalg.api.ndarray.INDArray %) (first (convert-to-nested-vectors %)) %) data))
@@ -328,7 +329,8 @@
                      (or (instance? (Class/forName "[D") data) (instance? (Class/forName "[[D") data))
                      (let [pvec (m/to-nested-vectors data)] (if (instance? java.lang.Number (first pvec)) [pvec] pvec))
                      :else
-                     (m/to-nested-vectors data))
+                      (do () (let [pre (m/to-nested-vectors data)] (cond (mp/is-scalar? pre) [[pre]] (mp/is-vector? pre) [pre] :else pre)))) ;TODO
+        vgr (println "data-p:" data-p)
         crr (Nd4j/create
              (double-array (vec (flatten data-p)))
              (int-array
@@ -336,9 +338,9 @@
                 (if (not (sequential? cur))
                   lst
                   (recur (first cur) (conj lst (count cur)))))))]
-    (cond (instance? java.lang.Number data)  (->clj-INDArray crr false true false)
-          (and (instance? clojure.lang.PersistentVector data) (instance? java.lang.Number (first data))) (->clj-INDArray crr true false false)
-          :else (->clj-INDArray crr false false false)))))
+                       (->clj-INDArray crr (mp/is-vector? data) (mp/is-scalar? data) false))))
+
+
 
 #_(extend-type org.nd4j.linalg.api.ndarray.INDArray
   mp/PImplementation
