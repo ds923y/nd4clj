@@ -3,7 +3,6 @@
             [clojure.core.matrix :as m]
             [clojure.reflect :as r]
             [clojure.core.matrix.utils :as util]
-            [clojure.core.matrix.compliance-tester :as ct]
             [clojure.core.matrix.implementations :as imp])
   (:use [clojure.pprint :only [print-table]])
   (:import [org.nd4j.linalg.factory Nd4j]
