@@ -19,6 +19,8 @@ file.  Here is an example of usage.
             [clojure.core.matrix :as indarray])
   (:gen-class))
 
+  (indarray/set-current-implementation :nd4j)
+
 (def A (indarray/array [[0 1] [2 3]]))
 (def I (indarray/array [[1 0] [0 1]]))
 
